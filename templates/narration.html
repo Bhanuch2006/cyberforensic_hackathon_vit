@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ForensIQ // NARRATIVE_MODE</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: { 
+              mono: ['"VT323"', "monospace"],
+              tech: ['"Share Tech Mono"', "monospace"]
+            },
+            colors: {
+              bg: "#020202",
+              panel: "#080808",
+              border: "#333",
+              neon: {
+                green: "#00ff41",
+                red: "#ff003c",
+                blue: "#00f3ff",
+                yellow: "#ffee00",
+                purple: "#bc13fe", 
+              },
+            },
+            animation: {
+              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'glitch': 'glitch 1s linear infinite',
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* --- CYBERPUNK AESTHETICS --- */
+      body { 
+        background-color: #000; 
+        color: #00ff41; 
+        font-family: 'VT323', monospace; 
+        font-size: 1.2rem; 
+        overflow: hidden; 
+      }
+      
+      /* CRT Overlay */
+      .scanlines {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+        background-size: 100% 4px; pointer-events: none; z-index: 50;
+      }
+      .crt-glow {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        box-shadow: inset 0 0 100px rgba(0, 255, 65, 0.05);
+        pointer-events: none; z-index: 49;
+      }
+
+      /* Panel Styling */
+      .cyber-panel {
+        background: rgba(10, 10, 10, 0.95); 
+        border: 1px solid #333; 
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+        position: relative;
+      }
+      .cyber-panel::before { 
+        content: ""; position: absolute; top: -1px; left: -1px; width: 10px; height: 10px; 
+        border-top: 2px solid #00ff41; border-left: 2px solid #00ff41; 
+      }
+      .cyber-panel::after { 
+        content: ""; position: absolute; bottom: -1px; right: -1px; width: 10px; height: 10px; 
+        border-bottom: 2px solid #00ff41; border-right: 2px solid #00ff41; 
+      }
+
+      /* Text Effects */
+      .text-glow { text-shadow: 0 0 5px rgba(0, 255, 65, 0.6); }
+      .text-glow-red { text-shadow: 0 0 5px rgba(255, 0, 60, 0.6); }
+      .text-glow-blue { text-shadow: 0 0 5px rgba(0, 243, 255, 0.6); }
+
+      /* Buttons */
+      .btn-nav {
+        background: #001100; border: 1px solid #00ff41; color: #00ff41; 
+        padding: 8px 24px; text-transform: uppercase; cursor: pointer; transition: all 0.2s;
+        font-family: 'Share Tech Mono', monospace; letter-spacing: 1px;
+      }
+      .btn-nav:hover:not(:disabled) { background: #00ff41; color: #000; box-shadow: 0 0 15px #00ff41; }
+      .btn-nav:disabled { border-color: #333; color: #555; cursor: not-allowed; }
+
+      /* Timeline Line */
+      .timeline-line {
+        position: absolute; left: 24px; top: 10px; bottom: 10px; width: 2px; background: #333;
+      }
+      
+      /* Scrollbar */
+      ::-webkit-scrollbar { width: 8px; background: #000; }
+      ::-webkit-scrollbar-thumb { background: #004400; border: 1px solid #00ff41; }
+      ::-webkit-scrollbar-thumb:hover { background: #00ff41; }
+    </style>
+  </head>
+
+  <body class="flex flex-col h-screen p-6 gap-6 selection:bg-neon-green selection:text-black">
+    <div class="scanlines"></div>
+    <div class="crt-glow"></div>
+
+    <header class="flex-none flex items-center justify-between border-b border-gray-800 pb-4">
+        <div>
+            <h1 class="text-4xl font-bold tracking-widest text-glow flex items-center gap-3">
+                🛡️ ForensIQ <span class="text-gray-600">//</span> <span class="text-neon-yellow">NARRATIVE_ENGINE</span>
+            </h1>
+            <div class="text-xs text-neon-blue mt-1 font-tech tracking-wider">
+                INCIDENT_REPORT_GENERATOR_V2.0 // CLASSIFIED_LEVEL_4
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <span class="text-gray-500 font-mono text-xl">FILE: <span id="current-page" class="text-white">01</span> / <span id="total-pages">10</span></span>
+            <div class="flex gap-2">
+                <button id="btn-prev" class="btn-nav" onclick="changeStory(-1)"> &lt; PREV_INCIDENT </button>
+                <button id="btn-next" class="btn-nav" onclick="changeStory(1)"> NEXT_INCIDENT &gt; </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 grid grid-cols-12 gap-6 overflow-hidden min-h-0 relative z-10">
+        
+        <aside class="col-span-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
+            
+            <div class="cyber-panel p-6">
+                <div class="flex justify-between items-start mb-4 border-b border-gray-800 pb-2">
+                    <h2 class="text-xl text-neon-red text-glow-red">TARGET_PROFILE</h2>
+                    <span id="severity-badge" class="bg-red-900/30 text-neon-red border border-neon-red px-2 py-0.5 text-xs animate-pulse-fast">CRITICAL</span>
+                </div>
+                
+                <div class="space-y-4 font-tech text-sm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-gray-500 text-xs">CHAIN ID</div>
+                            <div class="text-white text-lg" id="chain-id">--</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 text-xs">SOURCE IP</div>
+                            <div class="text-neon-yellow text-lg" id="source-ip">--</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-gray-500 text-xs">ORIGIN</div>
+                        <div class="text-white" id="origin-country">--</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-gray-500 text-xs">DURATION</div>
+                            <div class="text-neon-blue" id="duration">--</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500 text-xs">DATA EXFIL</div>
+                            <div class="text-neon-blue" id="data-transfer">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cyber-panel p-6 flex-1">
+                <h2 class="text-xl text-neon-blue text-glow-blue mb-4 border-b border-gray-800 pb-2">MITRE_ATT&CK_MAPPING</h2>
+                <div class="space-y-3 font-mono text-sm" id="mitre-container">
+                    </div>
+            </div>
+
+            <div class="cyber-panel p-6">
+                <h2 class="text-xl text-neon-green text-glow mb-4 border-b border-gray-800 pb-2">RECOMMENDATIONS</h2>
+                <ul class="space-y-2 text-sm list-none" id="rec-container">
+                    </ul>
+            </div>
+        </aside>
+
+        <section class="col-span-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
+            
+            <div class="cyber-panel p-8">
+                <h2 class="text-2xl text-white mb-2" id="story-title">Loading Incident...</h2>
+                <div class="text-neon-green leading-relaxed font-mono text-lg border-l-4 border-neon-green pl-4 bg-gray-900/50 p-4" id="exec-summary">
+                    </div>
+            </div>
+
+            <div class="cyber-panel p-8">
+                <h3 class="text-neon-yellow text-lg mb-4 border-b border-gray-800 pb-1">> DETAILED_ANALYSIS_LOG</h3>
+                <div class="text-gray-300 space-y-4 font-mono leading-relaxed whitespace-pre-line" id="detailed-narrative">
+                    </div>
+            </div>
+
+            <div class="cyber-panel p-8">
+                <h3 class="text-neon-blue text-lg mb-6 border-b border-gray-800 pb-1">> INCIDENT_TIMELINE</h3>
+                <div class="relative pl-4 space-y-8" id="timeline-container">
+                    <div class="timeline-line"></div>
+                    </div>
+            </div>
+
+        </section>
+    </main>
+
+    <script>
+        // ==========================================
+        // 1. DATA (INJECTED FROM REPORT)
+        // ==========================================
+        const MOCK_STORIES = [
+            {
+                chain_id: "CHAIN_1370",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.3",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "8 minutes",
+                    data: "147.49 MB"
+                },
+                summary: "On January 23, 2015 at 01:05, ForensIQ detected a high severity lateral movement attack. The attacker established a foothold and systematically moved through the network. The attack involved 2,218 network events targeting 10 systems over a period of 8 minutes.",
+                narrative: "## Attack Overview\nAt 01:05:22, an attacker operating from IP address 59.166.0.3 gained initial access and began exploring the internal network infrastructure.\n\n## Behavioral Anomalies\nThe attack exhibited significant deviation from normal baseline behavior (score: 0.80). Network activity frequency was 80.4x higher than baseline.\n\n## Outcome\nThe attack compromised internal systems. Primary target ports included: 53, 80, 5190.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1021: Remote Services"],
+                recommendations: [
+                    "Enable enhanced logging on all accessed systems",
+                    "Restrict privileged account access",
+                    "Isolate affected systems immediately",
+                    "Block IP 59.166.0.3",
+                    "Conduct security awareness training"
+                ],
+                timeline: [
+                    { time: "2015-01-23 01:05:22", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-23 01:05:22", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.80)", severity: "WARNING" },
+                    { time: "2015-01-23 01:14:02", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1289",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.2",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "130 minutes",
+                    data: "3969.17 MB"
+                },
+                summary: "On January 22, 2015 at 22:36, a high severity lateral movement attack was detected. The attack involved 80,885 network events targeting 10 systems over a period of 130 minutes.",
+                narrative: "## Attack Overview\nAt 22:36:22, attacker from 59.166.0.2 gained initial access.\n\n## Behavioral Anomalies\nNetwork activity frequency was 964.9x higher than baseline.\n\n## Data Transfer\nThe attack involved significant data transfer of 3969.17 MB, raising concerns about potential data exfiltration.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1041: Exfiltration Over C2"],
+                recommendations: [
+                    "Block IP 59.166.0.2",
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training"
+                ],
+                timeline: [
+                    { time: "2015-01-22 22:36:22", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 22:36:22", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.50)", severity: "WARNING" },
+                    { time: "2015-01-23 00:46:36", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1123",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.0",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "87 minutes",
+                    data: "2565.70 MB"
+                },
+                summary: "On January 22, 2015 at 17:20, a high severity lateral movement attack was detected. The attack involved 47,952 network events targeting 10 systems over a period of 87 minutes.",
+                narrative: "## Attack Overview\nAt 17:20:14, attacker from 59.166.0.0 gained initial access.\n\n## Behavioral Anomalies\nNetwork activity frequency was 4201.0x higher than baseline.\n\n## Outcome\nCompromised internal systems. Primary target ports included: 53, 6881, 80.",
+                mitre: ["TA0008: Lateral Movement", "T1021: Remote Services", "T1078: Valid Accounts"],
+                recommendations: [
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training",
+                    "Block IP 59.166.0.0"
+                ],
+                timeline: [
+                    { time: "2015-01-22 17:20:14", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 17:20:14", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.50)", severity: "WARNING" },
+                    { time: "2015-01-22 18:47:15", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_0962",
+                title: "Lateral Movement from North Korea",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "175.45.176.1",
+                    country: "North Korea (KP)",
+                    isp: "Ryugyong-dong"
+                },
+                metrics: {
+                    duration: "117 minutes",
+                    data: "1206.87 MB"
+                },
+                summary: "On January 22, 2015 at 17:20, ForensIQ detected a high severity attack. The attacker's IP has a confirmed malicious activity rate of 92%. The attack involved 153,160 network events targeting 12 systems.",
+                narrative: "## Attack Overview\nAt 17:20:25, attacker from 175.45.176.1 gained initial access.\n\n## Attack Progression\nThe attack demonstrated a gradual escalation pattern. Systematic escalation suggests a methodical, multi-stage attack.\n\n## Targets\nPrimary target ports included: 179, 445, 80. Large number of targets suggests reconnaissance.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1110: Brute Force"],
+                recommendations: [
+                    "Block IP 175.45.176.1 immediately",
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training"
+                ],
+                timeline: [
+                    { time: "2015-01-22 17:20:25", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 18:18:57", event: "Attack Escalation", desc: "Gradual escalation pattern observed", severity: "CRITICAL" },
+                    { time: "2015-01-22 18:48:13", event: "Peak Malicious Activity", desc: "Anomaly ratio reached 94.3%", severity: "CRITICAL" },
+                    { time: "2015-01-22 19:17:29", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1177",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.0",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "8 minutes",
+                    data: "214.95 MB"
+                },
+                summary: "On January 23, 2015 at 01:05, a high severity lateral movement attack was detected involving 3,342 network events targeting 10 systems over 8 minutes.",
+                narrative: "## Attack Overview\nAt 01:05:21, attacker from 59.166.0.0 gained initial access.\n\n## Behavioral Anomalies\nNetwork activity frequency was 3848.8x higher than baseline.\n\n## Data Transfer\nSignificant data transfer of 214.95 MB observed.",
+                mitre: ["TA0008: Lateral Movement", "T1021: Remote Services", "T1041: Exfiltration Over C2"],
+                recommendations: [
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training",
+                    "Block IP 59.166.0.0"
+                ],
+                timeline: [
+                    { time: "2015-01-23 01:05:21", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-23 01:05:21", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.70)", severity: "WARNING" },
+                    { time: "2015-01-23 01:14:02", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1625",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.8",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "51 minutes",
+                    data: "877.46 MB"
+                },
+                summary: "On January 22, 2015 at 20:52, a high severity lateral movement attack was detected. The attack involved 17,423 network events targeting 10 systems over 51 minutes.",
+                narrative: "## Attack Overview\nAt 20:52:30, attacker from 59.166.0.8 gained initial access.\n\n## Behavioral Anomalies\nNetwork activity frequency was 3478.5x higher than baseline.\n\n## Outcome\nCompromised internal systems. Primary target ports included: 53, 80, 5190.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1021: Remote Services"],
+                recommendations: [
+                    "Block IP 59.166.0.8",
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training"
+                ],
+                timeline: [
+                    { time: "2015-01-22 20:52:30", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 20:52:30", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.50)", severity: "WARNING" },
+                    { time: "2015-01-22 21:44:01", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1151",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.0",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "25 minutes",
+                    data: "5953.69 MB"
+                },
+                summary: "On January 22, 2015 at 22:03, a high severity lateral movement attack was detected. The attack involved 59,839 network events targeting 10 systems over 25 minutes.",
+                narrative: "## Attack Overview\nAt 22:03:26, attacker from 59.166.0.0 gained initial access.\n\n## Behavioral Anomalies\nNetwork activity frequency was 10874.3x higher than baseline, indicating high severity.\n\n## Data Transfer\nThe attack involved significant data transfer of 5953.69 MB.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1041: Exfiltration Over C2"],
+                recommendations: [
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training",
+                    "Block IP 59.166.0.0"
+                ],
+                timeline: [
+                    { time: "2015-01-22 22:03:26", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 22:03:26", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.70)", severity: "WARNING" },
+                    { time: "2015-01-22 22:29:05", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1631",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.8",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "34 minutes",
+                    data: "6942.32 MB"
+                },
+                summary: "On January 22, 2015 at 21:56, a high severity lateral movement attack was detected. The attack involved 75,932 network events targeting 10 systems over 34 minutes.",
+                narrative: "## Attack Overview\nAt 21:56:59, attacker from 59.166.0.8 gained initial access.\n\n## Behavioral Anomalies\nNetwork activity frequency was 8513.6x higher than baseline, indicating high severity.\n\n## Outcome\nCompromised internal systems. Primary target ports included: 53, 80, 5190.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1021: Remote Services"],
+                recommendations: [
+                    "Block IP 59.166.0.8",
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training"
+                ],
+                timeline: [
+                    { time: "2015-01-22 21:56:59", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 21:56:59", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.70)", severity: "WARNING" },
+                    { time: "2015-01-22 22:31:00", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1280",
+                title: "Lateral Movement Attack from Japan",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "59.166.0.2",
+                    country: "Japan (JP)",
+                    isp: "JCOM Co., Ltd."
+                },
+                metrics: {
+                    duration: "31 minutes",
+                    data: "8102.85 MB"
+                },
+                summary: "On January 22, 2015 at 21:56, a high severity lateral movement attack was detected. The attack involved 73,741 network events targeting 10 systems over 31 minutes.",
+                narrative: "## Attack Overview\nAt 21:56:52, attacker from 59.166.0.2 gained initial access.\n\n## Behavioral Anomalies\nNetwork activity frequency was 2255.0x higher than baseline.\n\n## Data Transfer\nThe attack involved significant data transfer of 8102.85 MB, raising concerns about potential data exfiltration.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1041: Exfiltration Over C2"],
+                recommendations: [
+                    "Block IP 59.166.0.2",
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training"
+                ],
+                timeline: [
+                    { time: "2015-01-22 21:56:52", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 21:56:52", event: "Baseline Deviation", desc: "Unusual behavior (score: 0.70)", severity: "WARNING" },
+                    { time: "2015-01-22 22:28:25", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            },
+            {
+                chain_id: "CHAIN_1069",
+                title: "Lateral Movement from North Korea",
+                severity_level: "HIGH",
+                attacker_profile: {
+                    ip: "175.45.176.3",
+                    country: "North Korea (KP)",
+                    isp: "Ryugyong-dong"
+                },
+                metrics: {
+                    duration: "116 minutes",
+                    data: "1158.21 MB"
+                },
+                summary: "On January 22, 2015 at 17:20, a high severity lateral movement attack was detected. The attacker's IP has a confirmed malicious activity rate of 60%. The attack involved 53,985 network events.",
+                narrative: "## Attack Overview\nAt 17:20:15, attacker from 175.45.176.3 gained initial access.\n\n## Attack Progression\nThe attack demonstrated a gradual escalation pattern from 100% to 100%. Systematic escalation suggests a methodical, multi-stage attack.\n\n## Outcome\nCompromised internal systems. Anomaly ratio reached 99.9%.",
+                mitre: ["TA0008: Lateral Movement", "T1046: Network Service Scanning", "T1110: Brute Force"],
+                recommendations: [
+                    "Block IP 175.45.176.3",
+                    "Enable enhanced logging",
+                    "Restrict privileged account access",
+                    "Isolate affected systems",
+                    "Conduct security awareness training"
+                ],
+                timeline: [
+                    { time: "2015-01-22 17:20:15", event: "Attack Initiated", desc: "First anomalous activity detected", severity: "INFO" },
+                    { time: "2015-01-22 18:18:21", event: "Attack Escalation", desc: "Gradual escalation pattern observed", severity: "CRITICAL" },
+                    { time: "2015-01-22 18:47:24", event: "Peak Malicious Activity", desc: "Anomaly ratio reached 99.9%", severity: "CRITICAL" },
+                    { time: "2015-01-22 19:16:27", event: "Attack Concluded", desc: "Last anomalous activity recorded", severity: "INFO" }
+                ]
+            }
+        ];
+
+        // ==========================================
+        // 2. APP LOGIC
+        // ==========================================
+        let currentIndex = 0;
+
+        function renderStory(index) {
+            const story = MOCK_STORIES[index];
+            const severityColor = story.severity_level === 'CRITICAL' ? 'text-neon-red border-neon-red' : 
+                                  (story.severity_level === 'HIGH' ? 'text-neon-yellow border-neon-yellow' : 'text-neon-blue border-neon-blue');
+
+            // 1. Update Header & Pagination
+            document.getElementById('current-page').innerText = (index + 1).toString().padStart(2, '0');
+            document.getElementById('total-pages').innerText = MOCK_STORIES.length;
+            document.getElementById('btn-prev').disabled = index === 0;
+            document.getElementById('btn-next').disabled = index === MOCK_STORIES.length - 1;
+
+            // 2. Profile
+            document.getElementById('chain-id').innerText = story.chain_id;
+            document.getElementById('source-ip').innerText = story.attacker_profile.ip;
+            document.getElementById('origin-country').innerText = story.attacker_profile.country;
+            document.getElementById('duration').innerText = story.metrics.duration;
+            document.getElementById('data-transfer').innerText = story.metrics.data;
+            
+            // Severity Badge
+            const badge = document.getElementById('severity-badge');
+            badge.className = `border px-2 py-0.5 text-xs animate-pulse-fast ${severityColor} bg-opacity-20 bg-gray-900`;
+            badge.innerText = story.severity_level;
+
+            // 3. Narrative
+            document.getElementById('story-title').innerText = story.title;
+            // Typewriter effect for summary
+            const summaryEl = document.getElementById('exec-summary');
+            summaryEl.innerHTML = '';
+            let charIndex = 0;
+            // Clear existing interval if any
+            if(window.typeWriterInterval) clearInterval(window.typeWriterInterval);
+            
+            window.typeWriterInterval = setInterval(() => {
+                if (charIndex < story.summary.length) {
+                    summaryEl.innerHTML += story.summary.charAt(charIndex);
+                    charIndex++;
+                } else {
+                    clearInterval(window.typeWriterInterval);
+                }
+            }, 10); // Speed
+
+            document.getElementById('detailed-narrative').innerText = story.narrative;
+
+            // 4. MITRE
+            const mitreContainer = document.getElementById('mitre-container');
+            mitreContainer.innerHTML = story.mitre.map(m => 
+                `<div class="flex items-center gap-2"><span class="text-neon-red">></span> <span class="text-gray-300 hover:text-white transition">${m}</span></div>`
+            ).join('');
+
+            // 5. Recommendations
+            const recContainer = document.getElementById('rec-container');
+            recContainer.innerHTML = story.recommendations.map(r => 
+                `<li class="flex gap-2 text-gray-400"><span class="text-neon-green">[+]</span> ${r}</li>`
+            ).join('');
+
+            // 6. Timeline
+            const timelineContainer = document.getElementById('timeline-container');
+            timelineContainer.innerHTML = '<div class="timeline-line"></div>'; // Reset
+            
+            story.timeline.forEach(event => {
+                let colorClass = 'bg-neon-blue';
+                if(event.severity === 'WARNING') colorClass = 'bg-neon-yellow shadow-[0_0_10px_#ffee00]';
+                if(event.severity === 'CRITICAL') colorClass = 'bg-neon-red shadow-[0_0_10px_#ff003c]';
+
+                const html = `
+                    <div class="relative pl-10 group">
+                        <div class="absolute left-[20px] top-1.5 w-3 h-3 rounded-full ${colorClass} z-10 border border-black"></div>
+                        <div class="border-l-2 border-transparent group-hover:border-gray-700 pl-4 transition-all">
+                            <div class="font-tech text-xs text-gray-500 mb-0.5">${event.time}</div>
+                            <div class="text-white font-bold text-lg mb-1 group-hover:text-glow">${event.event}</div>
+                            <div class="text-gray-400 text-sm font-mono">${event.desc}</div>
+                        </div>
+                    </div>
+                `;
+                timelineContainer.innerHTML += html;
+            });
+        }
+
+        function changeStory(dir) {
+            const newIndex = currentIndex + dir;
+            if (newIndex >= 0 && newIndex < MOCK_STORIES.length) {
+                currentIndex = newIndex;
+                renderStory(currentIndex);
+            }
+        }
+
+        // Initialize
+        renderStory(0);
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,4868 @@
+Code Extraction from: J:\Hackathons\cybersecurity_hack\building\frontend\forensiq-api
+================================================================================
+Total files extracted: 17
+Extraction date: 2026-02-04 09:43:04.650041
+================================================================================
+
+
+================================================================================
+FILE 1/17: app\main.py
+================================================================================
+
+from fastapi import FastAPI, Request, File, UploadFile, Form
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import os
+import shutil
+import traceback
+from pathlib import Path
+
+
+app = FastAPI(
+    title="ForensIQ API",
+    description="Cybersecurity Threat Detection Platform",
+    version="1.0.0"
+)
+
+
+# Get the project root directory (parent of app/)
+BASE_DIR = Path(__file__).resolve().parent.parent
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
+UPLOAD_DIR = BASE_DIR / "data" / "uploads"
+
+
+# Create directories if they don't exist
+STATIC_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# Setup templates (pointing to root-level templates folder)
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+# Mount static files
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# Serve frontend at root URL
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+# Health check
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "models_loaded": True,
+        "data_available": True,
+        "config": {
+            "version": "1.0.0"
+        }
+    }
+
+
+# Main pipeline endpoint with file upload
+@app.post("/api/v1/run-full-pipeline")
+async def run_full_pipeline(
+    file: UploadFile = File(...),
+    threshold: float = Form(0.5)
+):
+    """Run the full ForensIQ detection pipeline with uploaded CSV file"""
+    
+    try:
+        print("="*50)
+        print(f"Received file upload request")
+        print(f"Filename: {file.filename}")
+        print(f"Content Type: {file.content_type}")
+        print(f"Threshold: {threshold}")
+        print("="*50)
+        
+        # Validate file is CSV
+        if not file.filename.endswith('.csv'):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "status": "error",
+                    "message": "Only CSV files are accepted"
+                }
+            )
+        
+        # Save uploaded file
+        file_path = UPLOAD_DIR / file.filename
+        
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        print(f"✓ File saved to: {file_path}")
+        
+        # Now run your pipeline with the uploaded file
+        input_file = str(file_path)
+        
+        # ================================================
+        # TODO: Replace this with your actual pipeline code
+        # ================================================
+        # Example:
+        # from app.modules.module_1_anomaly_detection import detect_anomalies
+        # from app.modules.module_2_correlation import correlate_attacks
+        # from app.modules.module_3_enrichment import enrich_ips
+        # from app.modules.module_4_mitre_mapping import map_mitre
+        # from app.modules.module_5_story_generation import generate_stories
+        
+        # import time
+        # start_time = time.time()
+        
+        # Module 1: Anomaly Detection
+        # print("Running Module 1: Anomaly Detection...")
+        # anomaly_results = detect_anomalies(input_file, threshold)
+        
+        # Module 2: Correlation
+        # print("Running Module 2: Correlation Engine...")
+        # correlation_results = correlate_attacks(
+        #     anomaly_results['forensiq_results'],
+        #     anomaly_results['anomalies_only']
+        # )
+        
+        # Module 3: IP Enrichment
+        # print("Running Module 3: IP Enrichment...")
+        # enrichment_results = enrich_ips(
+        #     correlation_results['attack_chains'],
+        #     input_file
+        # )
+        
+        # Module 4: MITRE Mapping
+        # print("Running Module 4: MITRE ATT&CK Mapping...")
+        # mitre_results = map_mitre(enrichment_results['enriched_chains'])
+        
+        # Module 5: Story Generation
+        # print("Running Module 5: Story Generation...")
+        # story_results = generate_stories(mitre_results['mitre_chains'])
+        
+        # total_time = time.time() - start_time
+        # ================================================
+        
+        # TEMPORARY: Mock response for testing
+        # Remove this when you integrate your actual modules
+        response = {
+            "status": "success",
+            "message": f"Pipeline completed successfully for {file.filename}",
+            "input_file": file.filename,
+            "module_outputs": {
+                "module_1_anomaly_detection": {
+                    "forensiq_results": f"output/forensiq_results_{file.filename}",
+                    "anomalies_only": f"output/anomalies_only_{file.filename}",
+                    "statistics": {
+                        "total_events": 175341,
+                        "anomalies_detected": 8767,
+                        "anomaly_rate": 0.05,
+                        "threshold": threshold
+                    }
+                },
+                "module_2_correlation": {
+                    "attack_chains": f"output/attack_chains_{file.filename}.json",
+                    "chain_summary": f"output/chain_summary_{file.filename}.csv",
+                    "statistics": {
+                        "total_chains": 45,
+                        "unique_attackers": 23,
+                        "baseline_deviations": 12,
+                        "escalations_detected": 8
+                    }
+                },
+                "module_3_enrichment": {
+                    "enriched_chains": f"output/enriched_chains_{file.filename}.json",
+                    "statistics": {
+                        "total_chains": 45,
+                        "chains_with_ground_truth": 38,
+                        "average_abuse_score": 67.3
+                    }
+                },
+                "module_4_mitre_mapping": {
+                    "mitre_chains": f"output/mitre_chains_{file.filename}.json",
+                    "mitre_report": f"output/mitre_report_{file.filename}.md",
+                    "statistics": {
+                        "total_chains": 45,
+                        "unique_tactics": 8,
+                        "unique_techniques": 15
+                    }
+                },
+                "module_5_story_generation": {
+                    "attack_stories": f"output/attack_stories_{file.filename}.json",
+                    "stories_report": f"output/stories_report_{file.filename}.md",
+                    "statistics": {
+                        "total_stories": 45,
+                        "critical_incidents": 8,
+                        "high_risk_incidents": 15
+                    }
+                }
+            },
+            "attack_chains": [
+                {
+                    "chain_id": "CHAIN_0001",
+                    "severity": "CRITICAL",
+                    "attacker_ip": "192.168.1.100",
+                    "pattern": "Lateral Movement + Data Exfiltration",
+                    "event_count": 147,
+                    "attack_story": "Attacker from 192.168.1.100 initiated reconnaissance scan at 14:23:45, followed by credential access attempts using stolen credentials. Lateral movement detected via SMB protocol to multiple internal hosts. Data exfiltration observed through encrypted channel to external C2 server.",
+                    "mitre_tactics": ["Reconnaissance", "Lateral Movement", "Exfiltration"],
+                    "mitre_techniques": ["T1046", "T1021.002", "T1041"],
+                    "timeline": [
+                        {"timestamp": "14:23:45", "description": "Initial port scan detected"},
+                        {"timestamp": "14:25:12", "description": "Credential access attempt"},
+                        {"timestamp": "14:27:33", "description": "Lateral movement to HOST-02"},
+                        {"timestamp": "14:30:18", "description": "Data staging in C:\\Temp"},
+                        {"timestamp": "14:32:45", "description": "Exfiltration to 203.0.113.45"}
+                    ],
+                    "recommendations": [
+                        "Isolate affected hosts immediately",
+                        "Reset credentials for compromised accounts",
+                        "Block C2 IP address 203.0.113.45",
+                        "Review firewall rules for SMB traffic"
+                    ]
+                },
+                {
+                    "chain_id": "CHAIN_0002",
+                    "severity": "HIGH",
+                    "attacker_ip": "10.0.0.45",
+                    "pattern": "Reconnaissance + Exploitation",
+                    "event_count": 82,
+                    "attack_story": "Multiple port scans detected from 10.0.0.45 targeting internal web servers. Exploitation attempt using known CVE-2024-1234 vulnerability. Successful privilege escalation detected.",
+                    "mitre_tactics": ["Reconnaissance", "Initial Access", "Privilege Escalation"],
+                    "mitre_techniques": ["T1046", "T1190", "T1068"],
+                    "timeline": [
+                        {"timestamp": "15:10:22", "description": "Port scan on web servers"},
+                        {"timestamp": "15:12:45", "description": "Exploitation attempt CVE-2024-1234"},
+                        {"timestamp": "15:15:03", "description": "Privilege escalation successful"}
+                    ],
+                    "recommendations": [
+                        "Patch CVE-2024-1234 on all web servers",
+                        "Review access logs for IOCs",
+                        "Implement network segmentation"
+                    ]
+                },
+                {
+                    "chain_id": "CHAIN_0003",
+                    "severity": "MEDIUM",
+                    "attacker_ip": "172.16.0.23",
+                    "pattern": "Credential Access",
+                    "event_count": 34,
+                    "attack_story": "Suspicious authentication attempts detected. Multiple failed login attempts followed by successful access using valid credentials.",
+                    "mitre_tactics": ["Credential Access", "Initial Access"],
+                    "mitre_techniques": ["T1110.001", "T1078"],
+                    "timeline": [
+                        {"timestamp": "16:05:11", "description": "Brute force attempts detected"},
+                        {"timestamp": "16:08:45", "description": "Successful login with valid credentials"}
+                    ],
+                    "recommendations": [
+                        "Enable MFA for all accounts",
+                        "Review password policies",
+                        "Implement account lockout policies"
+                    ]
+                }
+            ],
+            "final_outputs": {
+                "attack_stories_json": f"output/attack_stories_{file.filename}.json",
+                "attack_stories_report": f"output/stories_report_{file.filename}.md",
+                "mitre_report": f"output/mitre_report_{file.filename}.md"
+            },
+            "total_time_seconds": 367.2
+        }
+        
+        print("✓ Pipeline execution completed successfully")
+        return response
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"✗ Pipeline error: {str(e)}")
+        print(error_traceback)
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "message": str(e),
+                "error_details": error_traceback
+            }
+        )
+
+
+
+================================================================================
+FILE 2/17: app\core\config.py
+================================================================================
+
+"""
+Configuration management for ForensIQ API
+"""
+from pydantic_settings import BaseSettings
+from pathlib import Path
+from typing import List
+
+
+class Settings(BaseSettings):
+    """Application settings"""
+    
+    # API Configuration
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    debug: bool = True
+    
+    # Paths
+    data_path: str = "data/UNSW_prepared.csv"
+    output_dir: str = "output"
+    model_dir: str = "output/models"
+    autoencoder_path: str = "output/models/autoencoder.pth"
+    iforest_path: str = "output/models/iforest.pkl"
+    scaler_path: str = "output/models/scaler.pkl"
+    
+    # Model parameters
+    batch_size: int = 2048
+    ml_features: str = "dur,sbytes,dbytes,sttl,dttl,sloss,dloss"
+    
+    # Ensemble weights
+    weight_ae: float = 0.40
+    weight_iforest: float = 0.15
+    weight_hbos: float = 0.12
+    weight_statistical: float = 0.10
+    weight_copod: float = 0.10
+    weight_ecod: float = 0.08
+    weight_ngram: float = 0.05
+    
+    # Correlation parameters
+    time_window_seconds: int = 300
+    baseline_window_hours: int = 24
+    context_window_seconds: int = 600
+    ngram_size: int = 3
+    min_chain_size: int = 3
+    rarity_threshold: float = 0.95
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+    
+    @property
+    def ml_features_list(self) -> List[str]:
+        """Convert comma-separated string to list"""
+        return [f.strip() for f in self.ml_features.split(',')]
+    
+    @property
+    def weights_dict(self) -> dict:
+        """Get ensemble weights as dictionary"""
+        return {
+            "ae": self.weight_ae,
+            "iforest": self.weight_iforest,
+            "hbos": self.weight_hbos,
+            "statistical": self.weight_statistical,
+            "copod": self.weight_copod,
+            "ecod": self.weight_ecod,
+            "ngram": self.weight_ngram
+        }
+
+
+settings = Settings()
+
+
+
+================================================================================
+FILE 3/17: app\core\file_manager.py
+================================================================================
+
+"""
+File management utilities
+"""
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, Optional
+import json
+
+
+class FileManager:
+    """Manages input/output file tracking"""
+    
+    def __init__(self, output_dir: str = "output"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(exist_ok=True)
+        self.file_registry: Dict[str, str] = {}
+    
+    def generate_timestamp(self) -> str:
+        """Generate timestamp string"""
+        return datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    def get_output_path(self, filename_template: str) -> Path:
+        """
+        Get output file path with timestamp
+        
+        Args:
+            filename_template: e.g., "forensiq_results_{timestamp}.csv"
+        """
+        timestamp = self.generate_timestamp()
+        filename = filename_template.format(timestamp=timestamp)
+        return self.output_dir / filename
+    
+    def register_file(self, key: str, filepath: str):
+        """Register a file for future reference"""
+        self.file_registry[key] = filepath
+    
+    def get_file(self, key: str) -> Optional[str]:
+        """Get registered file path"""
+        return self.file_registry.get(key)
+    
+    def get_latest_file(self, pattern: str) -> Optional[Path]:
+        """
+        Get most recent file matching pattern
+        
+        Args:
+            pattern: e.g., "forensiq_results_*.csv"
+        """
+        files = sorted(self.output_dir.glob(pattern), reverse=True)
+        return files[0] if files else None
+    
+    def save_metadata(self, data: dict, filename: str):
+        """Save metadata as JSON"""
+        filepath = self.output_dir / filename
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=2)
+        return str(filepath)
+
+
+file_manager = FileManager()
+
+
+
+================================================================================
+FILE 4/17: app\core\model_loader.py
+================================================================================
+
+"""
+Model loading utilities
+"""
+import torch
+import pickle
+import torch.nn as nn
+from pathlib import Path
+from typing import Optional
+from app.core.config import settings
+
+
+class RobustAutoencoder(nn.Module):
+    """Autoencoder architecture (same as notebook)"""
+    def __init__(self, input_dim):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 8)
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(8, 16),
+            nn.ReLU(),
+            nn.Linear(16, 32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(32, input_dim)
+        )
+    
+    def forward(self, x):
+        z = self.encoder(x)
+        x_recon = self.decoder(z)
+        return x_recon
+
+
+class ModelLoader:
+    """Loads and caches pre-trained models"""
+    
+    def __init__(self):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.autoencoder: Optional[RobustAutoencoder] = None
+        self.iforest = None
+        self.scaler = None
+        self.hbos = None
+        self.copod = None
+        self.ecod = None
+    
+    def load_autoencoder(self, input_dim: int):
+        """Load pre-trained autoencoder"""
+        if self.autoencoder is None:
+            model_path = Path(settings.autoencoder_path)
+            if not model_path.exists():
+                raise FileNotFoundError(f"Autoencoder model not found at {model_path}")
+            
+            self.autoencoder = RobustAutoencoder(input_dim).to(self.device)
+            self.autoencoder.load_state_dict(torch.load(model_path, map_location=self.device))
+            self.autoencoder.eval()
+        
+        return self.autoencoder
+    
+    def load_iforest(self):
+        """Load pre-trained Isolation Forest"""
+        if self.iforest is None:
+            model_path = Path(settings.iforest_path)
+            if not model_path.exists():
+                raise FileNotFoundError(f"IsolationForest model not found at {model_path}")
+            
+            with open(model_path, 'rb') as f:
+                self.iforest = pickle.load(f)
+        
+        return self.iforest
+    
+    def load_scaler(self):
+        """Load pre-trained scaler"""
+        if self.scaler is None:
+            scaler_path = Path(settings.scaler_path)
+            if not scaler_path.exists():
+                raise FileNotFoundError(f"Scaler not found at {scaler_path}")
+            
+            with open(scaler_path, 'rb') as f:
+                self.scaler = pickle.load(f)
+        
+        return self.scaler
+    
+    def get_device(self):
+        """Get PyTorch device"""
+        return self.device
+
+
+# Global model loader instance
+model_loader = ModelLoader()
+
+
+
+================================================================================
+FILE 5/17: app\routers\anomaly_detection.py
+================================================================================
+
+"""
+Anomaly Detection Router - Module 1
+"""
+from fastapi import APIRouter, HTTPException
+from app.models.requests import AnomalyDetectionRequest
+from app.models.responses import AnomalyDetectionResponse
+from app.services.anomaly_detector import anomaly_detection_service
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["Anomaly Detection"]
+)
+
+
+@router.post("/detect-anomalies", response_model=AnomalyDetectionResponse)
+async def detect_anomalies(request: AnomalyDetectionRequest):
+    """
+    Run anomaly detection on network traffic data
+    
+    **Module 1: Anomaly Detection**
+    
+    This endpoint performs inference using pre-trained ML models (no training).
+    Uses ensemble of 7 algorithms: Autoencoder, IsolationForest, HBOS, 
+    Statistical, COPOD, ECOD, and N-gram.
+    
+    **Input:**
+    - input_file: Path to CSV file with network traffic data
+    - threshold: Optional custom anomaly threshold (default: 0.5)
+    
+    **Output:**
+    - forensiq_results_{timestamp}.csv: Full dataset with anomaly scores
+    - anomalies_only_{timestamp}.csv: Only detected anomalies
+    - metadata_{timestamp}.json: Detection statistics
+    
+    **Example:**
+    ```json
+    {
+        "input_file": "data/UNSW_prepared.csv",
+        "threshold": 0.5
+    }
+    ```
+    """
+    try:
+        result = await anomaly_detection_service.detect_anomalies(
+            input_file=request.input_file,
+            threshold=request.threshold
+        )
+        
+        return AnomalyDetectionResponse(
+            status="success",
+            message=f"Anomaly detection completed. Detected {result['statistics']['anomalies_detected']} anomalies.",
+            output_files=result['output_files'],
+            statistics=result['statistics']
+        )
+    
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Anomaly detection failed: {str(e)}")
+
+
+
+================================================================================
+FILE 6/17: app\routers\correlation.py
+================================================================================
+
+"""
+Correlation Engine Router - Module 2
+"""
+from fastapi import APIRouter, HTTPException
+from app.models.requests import CorrelationRequest
+from app.models.responses import CorrelationResponse
+from app.services.correlation_engine import correlation_engine
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["Correlation"]
+)
+
+
+@router.post("/correlate-attacks", response_model=CorrelationResponse)
+async def correlate_attacks(request: CorrelationRequest):
+    """
+    Build attack chains from anomaly detection results
+    
+    **Module 2: Hybrid Correlation Engine**
+    
+    Performs context-aware attack chain detection using:
+    - Full dataset for baseline establishment
+    - Anomalies as trigger points
+    - N-gram pattern analysis
+    - Baseline deviation detection
+    - Gradual escalation detection
+    
+    **Input:**
+    - full_results_file: forensiq_results_{timestamp}.csv from Module 1
+    - anomalies_file: anomalies_only_{timestamp}.csv from Module 1
+    
+    **Output:**
+    - hybrid_attack_chains_{timestamp}.json: Complete attack chains
+    - hybrid_chain_summary_{timestamp}.csv: Tabular summary
+    - hybrid_correlation_stats_{timestamp}.json: Statistics
+    
+    **Example:**
+    ```json
+    {
+        "full_results_file": "output/forensiq_results_20260203_101432.csv",
+        "anomalies_file": "output/anomalies_only_20260203_101432.csv"
+    }
+    ```
+    """
+    try:
+        result = await correlation_engine.correlate(
+            full_results_file=request.full_results_file,
+            anomaly_file=request.anomalies_file
+        )
+        
+        return CorrelationResponse(
+            status="success",
+            message=f"Correlation completed. Created {result['statistics']['total_chains']} attack chains.",
+            output_files=result['output_files'],
+            statistics=result['statistics']
+        )
+    
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Correlation failed: {str(e)}")
+
+
+
+================================================================================
+FILE 7/17: app\routers\enrichment.py
+================================================================================
+
+"""
+IP Enrichment Router - Module 3
+"""
+from fastapi import APIRouter, HTTPException
+from app.models.requests import EnrichmentRequest
+from app.models.responses import EnrichmentResponse
+from app.services.ip_enricher import ip_enrichment_service
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["IP Enrichment"]
+)
+
+
+@router.post("/enrich-ips", response_model=EnrichmentResponse)
+async def enrich_ips(request: EnrichmentRequest):
+    """
+    Enrich attack chains with IP reputation data
+    
+    **Module 3: IP Reputation Enrichment**
+    
+    Enriches attack chains with ground truth IP reputation from UNSW dataset
+    labels combined with behavior-based scoring.
+    
+    Scoring method:
+    - 70% Ground truth (from dataset labels)
+    - 30% Behavior analysis (attack severity, patterns, deviations)
+    
+    **Input:**
+    - chains_file: hybrid_attack_chains_{timestamp}.json from Module 2
+    - dataset_file: UNSW_prepared.csv (for ground truth labels)
+    
+    **Output:**
+    - enriched_chains_{timestamp}_ground_truth.json: Chains with IP reputation
+    
+    **Example:**
+    ```json
+    {
+        "chains_file": "output/hybrid_attack_chains_20260203_101432.json",
+        "dataset_file": "data/UNSW_prepared.csv"
+    }
+    ```
+    """
+    try:
+        result = await ip_enrichment_service.enrich_chains(
+            chains_file=request.chains_file,
+            dataset_file=request.dataset_file
+        )
+        
+        return EnrichmentResponse(
+            status="success",
+            message=f"IP enrichment completed. Enriched {result['statistics']['total_chains']} chains.",
+            output_file=result['output_files']['enriched_chains'],
+            statistics=result['statistics']
+        )
+    
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"IP enrichment failed: {str(e)}")
+
+
+
+================================================================================
+FILE 8/17: app\routers\file_upload.py
+================================================================================
+
+"""
+File Upload Router - Handles CSV upload and processing
+"""
+from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse
+import pandas as pd
+from io import BytesIO
+from pathlib import Path
+from datetime import datetime
+from app.core.config import settings
+from app.services import (
+    anomaly_detector,
+    correlation_engine,
+    ip_enricher,
+    mitre_mapper,
+    story_generator
+)
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["File Upload"]
+)
+
+
+@router.post("/upload-csv")
+async def upload_csv(file: UploadFile = File(...)):
+    """
+    Upload CSV file and run full ForensIQ pipeline
+    
+    **Process:**
+    1. Receive and validate CSV file
+    2. Save to data directory
+    3. Run full detection pipeline
+    4. Return results for dashboard visualization
+    
+    **Returns:**
+    - Upload metadata
+    - Anomaly detection summary
+    - Attack chains detected
+    - Top IOCs (IPs, patterns)
+    - Sample data rows
+    """
+    try:
+        # Validate file type
+        if not file.filename.endswith('.csv'):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid file type. Please upload a CSV file."
+            )
+        
+        # Read uploaded file
+        contents = await file.read()
+        
+        # Load into pandas DataFrame
+        try:
+            df = pd.read_csv(BytesIO(contents))
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to parse CSV: {str(e)}"
+            )
+        
+        # Validate CSV is not empty
+        if df.empty:
+            raise HTTPException(
+                status_code=400,
+                detail="CSV file is empty"
+            )
+        
+        # Save uploaded file to data directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        uploaded_filename = f"uploaded_{timestamp}.csv"
+        upload_path = Path("data") / uploaded_filename
+        
+        # Ensure data directory exists
+        Path("data").mkdir(exist_ok=True)
+        
+        # Save file
+        df.to_csv(upload_path, index=False)
+        
+        # ==================================================
+        # RUN FULL FORENSIQ PIPELINE
+        # ==================================================
+        
+        print(f"\n🔍 Processing {file.filename} ({len(df)} records)...")
+        
+        # Step 1: Anomaly Detection
+        print("   [1/5] Running anomaly detection...")
+        anomaly_results = anomaly_detector.detect(str(upload_path))
+        anomaly_df = pd.read_csv(anomaly_results['output_file'])
+        
+        # Step 2: Correlation Engine
+        print("   [2/5] Building attack chains...")
+        correlation_results = correlation_engine.correlate(anomaly_results['output_file'])
+        
+        # Step 3: IP Enrichment
+        print("   [3/5] Enriching IP addresses...")
+        enrichment_results = ip_enricher.enrich(correlation_results['output_file'])
+        
+        # Step 4: MITRE ATT&CK Mapping
+        print("   [4/5] Mapping MITRE techniques...")
+        mitre_results = mitre_mapper.map_attacks(enrichment_results['output_file'])
+        
+        # Step 5: Story Generation
+        print("   [5/5] Generating attack narratives...")
+        story_results = story_generator.generate(mitre_results['output_file'])
+        
+        print("   ✅ Pipeline complete!\n")
+        
+        # ==================================================
+        # PREPARE DASHBOARD RESPONSE
+        # ==================================================
+        
+        # Summary statistics
+        total_records = len(anomaly_df)
+        anomaly_count = int(anomaly_df['is_anomaly'].sum())
+        threat_rate = round((anomaly_count / total_records) * 100, 2)
+        
+        # Extract attack chains from correlation results
+        attack_chains = []
+        if 'attack_chains' in correlation_results:
+            for chain_id, chain_data in correlation_results['attack_chains'].items():
+                attack_chains.append({
+                    "id": chain_id,
+                    "severity": _get_severity(chain_data['score']),
+                    "pattern": chain_data.get('pattern', 'Unknown'),
+                    "count": chain_data['event_count'],
+                    "score": round(chain_data['score'], 2)
+                })
+        
+        # Extract top malicious IPs
+        malicious_ips = []
+        if 'srcip' in anomaly_df.columns:
+            top_ips = (
+                anomaly_df[anomaly_df['is_anomaly'] == 1]
+                .groupby('srcip')
+                .size()
+                .sort_values(ascending=False)
+                .head(5)
+            )
+            malicious_ips = [
+                {"ip": ip, "count": int(count)} 
+                for ip, count in top_ips.items()
+            ]
+        
+        # Extract MITRE techniques
+        mitre_techniques = []
+        if 'mitre_techniques' in mitre_results:
+            for technique in mitre_results['mitre_techniques'][:10]:
+                mitre_techniques.append({
+                    "id": technique['technique_id'],
+                    "name": technique['name'],
+                    "tactic": technique['tactic'],
+                    "count": technique.get('count', 1)
+                })
+        
+        # Get attack narratives
+        attack_stories = []
+        if 'stories' in story_results:
+            attack_stories = story_results['stories'][:3]  # Top 3 stories
+        
+        # Prepare sample data rows
+        sample_rows = anomaly_df.head(100).to_dict(orient='records')
+        
+        # Build response
+        response = {
+            "status": "success",
+            "upload_info": {
+                "original_name": file.filename,
+                "saved_name": uploaded_filename,
+                "size": len(contents),
+                "records": total_records,
+                "timestamp": timestamp
+            },
+            "summary": {
+                "total": total_records,
+                "anomalies": anomaly_count,
+                "rate": threat_rate,
+                "chains_detected": len(attack_chains)
+            },
+            "attack_chains": attack_chains,
+            "malicious_ips": malicious_ips,
+            "mitre_techniques": mitre_techniques,
+            "attack_stories": attack_stories,
+            "rows": sample_rows,
+            "pipeline_outputs": {
+                "anomaly_file": anomaly_results['output_file'],
+                "correlation_file": correlation_results['output_file'],
+                "enrichment_file": enrichment_results['output_file'],
+                "mitre_file": mitre_results['output_file'],
+                "story_file": story_results['output_file']
+            }
+        }
+        
+        return JSONResponse(content=response)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error processing file: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Processing failed: {str(e)}"
+        )
+
+
+def _get_severity(score: float) -> str:
+    """Map correlation score to severity level"""
+    if score >= 0.8:
+        return "CRITICAL"
+    elif score >= 0.6:
+        return "HIGH"
+    elif score >= 0.4:
+        return "MEDIUM"
+    else:
+        return "LOW"
+
+
+
+================================================================================
+FILE 9/17: app\routers\mitre_mapping.py
+================================================================================
+
+"""
+MITRE ATT&CK Mapping Router - Module 4
+"""
+from fastapi import APIRouter, HTTPException
+from app.models.requests import MITREMappingRequest
+from app.models.responses import MITREMappingResponse
+from app.services.mitre_mapper import mitre_mapper
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["MITRE ATT&CK Mapping"]
+)
+
+
+@router.post("/map-mitre", response_model=MITREMappingResponse)
+async def map_mitre_attack(request: MITREMappingRequest):
+    """
+    Map attack chains to MITRE ATT&CK framework
+    
+    **Module 4: MITRE ATT&CK Mapping**
+    
+    Maps attack chains to industry-standard MITRE ATT&CK framework, providing:
+    - Tactic identification (e.g., Reconnaissance, Initial Access)
+    - Technique mapping with confidence scores
+    - Sub-technique categorization
+    - Cyber Kill Chain phase classification
+    - Evidence extraction
+    
+    **Input:**
+    - enriched_chains_file: enriched_chains_{timestamp}_ground_truth.json from Module 3
+    
+    **Output:**
+    - enriched_chains_{timestamp}_ground_truth_mitre.json: Chains with MITRE mapping
+    - mitre_attack_report_{timestamp}.md: Markdown report
+    
+    **Example:**
+    ```json
+    {
+        "enriched_chains_file": "output/enriched_chains_20260203_ground_truth.json"
+    }
+    ```
+    """
+    try:
+        result = await mitre_mapper.map_chains(
+            enriched_chains_file=request.enriched_chains_file
+        )
+        
+        return MITREMappingResponse(
+            status="success",
+            message=f"MITRE mapping completed. Mapped {result['statistics']['total_chains']} chains.",
+            output_files=result['output_files'],
+            statistics=result['statistics']
+        )
+    
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MITRE mapping failed: {str(e)}")
+
+
+
+================================================================================
+FILE 10/17: app\routers\pipeline.py
+================================================================================
+
+"""
+Full Pipeline Router
+Executes all modules sequentially
+"""
+from fastapi import APIRouter, HTTPException
+from app.models.requests import FullPipelineRequest
+from app.models.responses import FullPipelineResponse
+from app.services.anomaly_detector import anomaly_detection_service
+from app.services.correlation_engine import correlation_engine
+from app.services.ip_enricher import ip_enrichment_service
+from app.services.mitre_mapper import mitre_mapper
+from app.services.story_generator import story_generator
+import time
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["Full Pipeline"]
+)
+
+
+@router.post("/run-full-pipeline", response_model=FullPipelineResponse)
+async def run_full_pipeline(request: FullPipelineRequest):
+    """
+    Execute complete ForensIQ pipeline (all 5 modules)
+    
+    **Full Pipeline Execution**
+    
+    Runs all modules sequentially:
+    1. Anomaly Detection (ML inference)
+    2. Correlation Engine (attack chain building)
+    3. IP Enrichment (reputation scoring)
+    4. MITRE ATT&CK Mapping (framework alignment)
+    5. Attack Story Generation (narrative creation)
+    
+    **Input:**
+    - input_file: Path to CSV file with network traffic data
+    - threshold: Optional anomaly threshold (default: 0.5)
+    
+    **Output:**
+    - All intermediate and final output files from each module
+    - Complete attack narratives with MITRE mapping and recommendations
+    
+    **Example:**
+    ```json
+    {
+        "input_file": "data/UNSW_prepared.csv",
+        "threshold": 0.5
+    }
+    ```
+    
+    **Note:** This endpoint may take several minutes depending on dataset size.
+    """
+    start_time = time.time()
+    module_outputs = {}
+    
+    try:
+        print("\n" + "="*80)
+        print("🚀 ForensIQ Full Pipeline Execution")
+        print("="*80)
+        
+        # Module 1: Anomaly Detection
+        print("\n[1/5] Running Anomaly Detection...")
+        module1_result = await anomaly_detection_service.detect_anomalies(
+            input_file=request.input_file,
+            threshold=request.threshold
+        )
+        module_outputs['module_1_anomaly_detection'] = module1_result['output_files']
+        
+        forensiq_results = module1_result['output_files']['forensiq_results']
+        anomalies_only = module1_result['output_files']['anomalies_only']
+        
+        print(f"✅ Module 1 complete. Detected {module1_result['statistics']['anomalies_detected']} anomalies.")
+        
+        # Module 2: Correlation
+        print("\n[2/5] Running Correlation Engine...")
+        module2_result = await correlation_engine.correlate(
+            full_results_file=forensiq_results,
+            anomaly_file=anomalies_only
+        )
+        module_outputs['module_2_correlation'] = module2_result['output_files']
+        
+        attack_chains = module2_result['output_files']['attack_chains']
+        
+        print(f"✅ Module 2 complete. Created {module2_result['statistics']['total_chains']} attack chains.")
+        
+        # Module 3: IP Enrichment
+        print("\n[3/5] Running IP Enrichment...")
+        module3_result = await ip_enrichment_service.enrich_chains(
+            chains_file=attack_chains,
+            dataset_file=request.input_file
+        )
+        module_outputs['module_3_enrichment'] = module3_result['output_files']
+        
+        enriched_chains = module3_result['output_files']['enriched_chains']
+        
+        print(f"✅ Module 3 complete. Enriched {module3_result['statistics']['total_chains']} chains.")
+        
+        # Module 4: MITRE Mapping
+        print("\n[4/5] Running MITRE ATT&CK Mapping...")
+        module4_result = await mitre_mapper.map_chains(
+            enriched_chains_file=enriched_chains
+        )
+        module_outputs['module_4_mitre_mapping'] = module4_result['output_files']
+        
+        mitre_chains = module4_result['output_files']['mitre_chains']
+        
+        print(f"✅ Module 4 complete. Mapped {module4_result['statistics']['total_chains']} chains.")
+        
+        # Module 5: Story Generation
+        print("\n[5/5] Running Attack Story Generation...")
+        module5_result = await story_generator.generate_stories(
+            mitre_chains_file=mitre_chains
+        )
+        module_outputs['module_5_story_generation'] = module5_result['output_files']
+        
+        print(f"✅ Module 5 complete. Generated {module5_result['statistics']['total_stories']} stories.")
+        
+        total_time = time.time() - start_time
+        
+        print("\n" + "="*80)
+        print("✅ FULL PIPELINE COMPLETE")
+        print("="*80)
+        print(f"⏱️  Total execution time: {total_time:.1f}s")
+        print(f"📦 Final output: {module5_result['output_files']['attack_stories']}")
+        
+        return FullPipelineResponse(
+            status="success",
+            message=f"Full pipeline completed successfully in {total_time:.1f}s",
+            module_outputs=module_outputs,
+            final_outputs={
+                "attack_stories_json": module5_result['output_files']['attack_stories'],
+                "attack_stories_report": module5_result['output_files']['stories_report'],
+                "mitre_report": module4_result['output_files']['mitre_report']
+            },
+            total_time_seconds=round(total_time, 2)
+        )
+    
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Pipeline execution failed at stage {len(module_outputs)+1}: {str(e)}"
+        )
+
+
+
+================================================================================
+FILE 11/17: app\routers\story_generation.py
+================================================================================
+
+"""
+Attack Story Generation Router - Module 5
+"""
+from fastapi import APIRouter, HTTPException
+from app.models.requests import StoryGenerationRequest
+from app.models.responses import StoryGenerationResponse
+from app.services.story_generator import story_generator
+
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["Story Generation"]
+)
+
+
+@router.post("/generate-stories", response_model=StoryGenerationResponse)
+async def generate_attack_stories(request: StoryGenerationRequest):
+    """
+    Generate human-readable attack narratives
+    
+    **Module 5: Attack Story Generation**
+    
+    Creates comprehensive incident narratives from technical data, including:
+    - Executive summaries
+    - Detailed attack narratives
+    - Incident timelines
+    - Risk assessments
+    - Security recommendations
+    - MITRE ATT&CK context
+    
+    **Input:**
+    - mitre_chains_file: enriched_chains_{timestamp}_ground_truth_mitre.json from Module 4
+    
+    **Output:**
+    - enriched_chains_{timestamp}_ground_truth_stories.json: Chains with narratives
+    - attack_stories_report_{timestamp}.md: Markdown report
+    
+    **Example:**
+    ```json
+    {
+        "mitre_chains_file": "output/enriched_chains_20260203_ground_truth_mitre.json"
+    }
+    ```
+    """
+    try:
+        result = await story_generator.generate_stories(
+            mitre_chains_file=request.mitre_chains_file
+        )
+        
+        return StoryGenerationResponse(
+            status="success",
+            message=f"Story generation completed. Generated {result['statistics']['total_stories']} narratives.",
+            output_files=result['output_files'],
+            statistics=result['statistics']
+        )
+    
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Story generation failed: {str(e)}")
+
+
+
+================================================================================
+FILE 12/17: app\services\anomaly_detector.py
+================================================================================
+
+"""
+Anomaly Detection Service - Module 1
+Inference-only (no training)
+"""
+import pandas as pd
+import numpy as np
+import torch
+from sklearn.ensemble import IsolationForest
+from collections import Counter
+from scipy import stats
+from pathlib import Path
+from datetime import datetime
+import json
+from typing import Dict, Tuple
+
+from app.core.config import settings
+from app.core.model_loader import model_loader
+from app.core.file_manager import file_manager
+
+
+# PyOD fallback implementations
+class SimpleECOD:
+    def __init__(self):
+        self.decision_scores_ = None
+    
+    def fit(self, X):
+        n_samples, n_features = X.shape
+        scores_per_feature = np.zeros((n_samples, n_features))
+        
+        for i in range(n_features):
+            sorted_indices = np.argsort(X[:, i])
+            ranks = np.empty_like(sorted_indices)
+            ranks[sorted_indices] = np.arange(n_samples)
+            left_prob = ranks / n_samples
+            right_prob = 1 - left_prob
+            tail_prob = np.minimum(left_prob, right_prob)
+            scores_per_feature[:, i] = tail_prob
+        
+        log_probs = np.log(scores_per_feature + 1e-10)
+        self.decision_scores_ = -np.sum(log_probs, axis=1)
+        return self
+
+
+class SimpleHBOS:
+    def __init__(self, n_bins=10):
+        self.n_bins = n_bins
+        self.decision_scores_ = None
+    
+    def fit(self, X):
+        n_samples, n_features = X.shape
+        scores_per_feature = np.zeros((n_samples, n_features))
+        
+        for i in range(n_features):
+            hist, bin_edges = np.histogram(X[:, i], bins=self.n_bins, density=True)
+            bin_indices = np.digitize(X[:, i], bin_edges[:-1]) - 1
+            bin_indices = np.clip(bin_indices, 0, len(hist) - 1)
+            densities = hist[bin_indices]
+            scores_per_feature[:, i] = -np.log(densities + 1e-10)
+        
+        self.decision_scores_ = np.sum(scores_per_feature, axis=1)
+        return self
+
+
+class SimpleCOPOD:
+    def __init__(self):
+        self.decision_scores_ = None
+    
+    def fit(self, X):
+        n_samples, n_features = X.shape
+        copula_data = np.zeros_like(X)
+        
+        for i in range(n_features):
+            copula_data[:, i] = stats.rankdata(X[:, i]) / n_samples
+        
+        left_tail = copula_data
+        right_tail = 1 - copula_data
+        tail_probs = np.minimum(left_tail, right_tail)
+        log_probs = np.log(tail_probs + 1e-10)
+        self.decision_scores_ = -np.sum(log_probs, axis=1)
+        return self
+
+
+# Try PyOD, fallback to manual
+try:
+    from pyod.models.ecod import ECOD
+    from pyod.models.hbos import HBOS
+    from pyod.models.copod import COPOD
+except ImportError:
+    ECOD = SimpleECOD
+    HBOS = SimpleHBOS
+    COPOD = SimpleCOPOD
+
+
+class AnomalyDetectionService:
+    """Anomaly detection using pre-trained ensemble models"""
+    
+    def __init__(self):
+        self.weights = settings.weights_dict
+        self.ml_features = settings.ml_features_list
+        self.device = model_loader.get_device()
+    
+    def normalize_score(self, scores: np.ndarray) -> np.ndarray:
+        """Min-Max normalization"""
+        min_s, max_s = scores.min(), scores.max()
+        return (scores - min_s) / (max_s - min_s) if max_s > min_s else scores
+    
+    async def detect_anomalies(self, input_file: str, threshold: float = None) -> Dict:
+        """
+        Run anomaly detection on input data (INFERENCE ONLY)
+        
+        Args:
+            input_file: Path to input CSV
+            threshold: Custom threshold (if None, use default 0.5)
+        
+        Returns:
+            Dictionary with output files and statistics
+        """
+        print(f"\n{'='*70}")
+        print("🔍 ForensIQ - Anomaly Detection (Inference Mode)")
+        print(f"{'='*70}")
+        
+        # Load data
+        print(f"\n📂 Loading data from: {input_file}")
+        df = pd.read_csv(input_file, encoding='utf-8', low_memory=False)
+        print(f"✅ Loaded {len(df):,} events")
+        
+        # Prepare features
+        print(f"\n🔧 Preparing features...")
+        available_features = [f for f in self.ml_features if f in df.columns]
+        print(f"   Using {len(available_features)} features: {available_features}")
+        
+        X = df[available_features].fillna(0).replace([np.inf, -np.inf], 0).values
+        
+        # Load scaler and transform
+        scaler = model_loader.load_scaler()
+        X_scaled = scaler.transform(X)
+        print(f"✅ Features ready: {X_scaled.shape}")
+        
+        # Run all detection components
+        print(f"\n{'='*70}")
+        print("🔧 Running Detection Components (Inference)")
+        print(f"{'='*70}")
+        
+        component_scores = {}
+        
+        # 1. Autoencoder
+        print("\n1️⃣ Autoencoder (inference)...")
+        ae_model = model_loader.load_autoencoder(X_scaled.shape[1])
+        with torch.no_grad():
+            X_tensor = torch.FloatTensor(X_scaled).to(self.device)
+            X_recon = ae_model(X_tensor).cpu().numpy()
+            ae_errors = np.mean((X_scaled - X_recon) ** 2, axis=1)
+        component_scores['ae'] = ae_errors
+        print("   ✅ Done")
+        
+        # 2. Isolation Forest
+        print("2️⃣ Isolation Forest (inference)...")
+        iforest = model_loader.load_iforest()
+        component_scores['iforest'] = -iforest.score_samples(X_scaled)
+        print("   ✅ Done")
+        
+        # 3. HBOS (fast, can retrain on-the-fly)
+        print("3️⃣ HBOS...")
+        hbos = HBOS() if hasattr(HBOS, '__module__') else HBOS(n_bins=10)
+        hbos.fit(X_scaled)
+        component_scores['hbos'] = hbos.decision_scores_
+        print("   ✅ Done")
+        
+        # 4. Statistical baseline
+        print("4️⃣ Statistical baseline...")
+        if 'proto' in df.columns:
+            stat_scores = np.zeros(len(X_scaled))
+            for proto in df['proto'].unique():
+                proto_mask = df['proto'] == proto
+                proto_data = X_scaled[proto_mask]
+                if len(proto_data) > 10:
+                    mean = proto_data.mean(axis=0)
+                    std = proto_data.std(axis=0) + 1e-6
+                    z_scores = np.abs((proto_data - mean) / std)
+                    stat_scores[proto_mask] = z_scores.max(axis=1)
+        else:
+            mean = X_scaled.mean(axis=0)
+            std = X_scaled.std(axis=0) + 1e-6
+            z_scores = np.abs((X_scaled - mean) / std)
+            stat_scores = z_scores.max(axis=1)
+        component_scores['statistical'] = stat_scores
+        print("   ✅ Done")
+        
+        # 5. COPOD
+        print("5️⃣ COPOD...")
+        copod = COPOD()
+        copod.fit(X_scaled)
+        component_scores['copod'] = copod.decision_scores_
+        print("   ✅ Done")
+        
+        # 6. ECOD
+        print("6️⃣ ECOD...")
+        ecod = ECOD()
+        ecod.fit(X_scaled)
+        component_scores['ecod'] = ecod.decision_scores_
+        print("   ✅ Done")
+        
+        # 7. N-gram sequences
+        print("7️⃣ N-gram sequences...")
+        ngram_scores = self._compute_ngram_scores(df)
+        component_scores['ngram'] = ngram_scores
+        print("   ✅ Done")
+        
+        # Ensemble scoring
+        print(f"\n{'='*70}")
+        print("🔀 Creating Ensemble")
+        print(f"{'='*70}")
+        
+        normalized_scores = {
+            name: self.normalize_score(scores)
+            for name, scores in component_scores.items()
+        }
+        
+        ensemble_score = sum(
+            self.weights[name] * normalized_scores[name]
+            for name in self.weights.keys()
+        )
+        
+        # Apply threshold
+        if threshold is None:
+            threshold = 0.5  # Default threshold
+        
+        y_pred = (ensemble_score >= threshold).astype(int)
+        
+        print(f"\n✅ Threshold: {threshold:.4f}")
+        print(f"   Anomalies detected: {y_pred.sum():,} ({y_pred.sum()/len(y_pred)*100:.2f}%)")
+        
+        # Save results
+        return await self._save_results(df, ensemble_score, y_pred, normalized_scores, threshold)
+    
+    def _compute_ngram_scores(self, df: pd.DataFrame) -> np.ndarray:
+        """Compute N-gram rarity scores"""
+        if not all(col in df.columns for col in ['proto', 'state', 'spkts', 'srcip']):
+            return np.zeros(len(df))
+        
+        pkt_bins = pd.cut(df['spkts'], bins=[0, 10, 100, 1000, np.inf],
+                          labels=['tiny', 'small', 'med', 'large']).astype(str)
+        signatures = df['proto'].astype(str) + "|" + df['state'].astype(str) + "|" + pkt_bins
+        
+        ngram_scores = np.zeros(len(df))
+        for src_ip in df['srcip'].unique():
+            ip_mask = df['srcip'] == src_ip
+            ip_indices = np.where(ip_mask)[0]
+            ip_sigs = signatures[ip_mask].tolist()
+            
+            if len(ip_sigs) > 1:
+                bigrams = [f"{ip_sigs[i]}→{ip_sigs[i+1]}" for i in range(len(ip_sigs)-1)]
+                global_freq = Counter(bigrams)
+                total = sum(global_freq.values())
+                
+                for i, bigram in enumerate(bigrams):
+                    if i < len(ip_indices):
+                        freq = global_freq[bigram]
+                        rarity = -np.log(freq / total) if total > 0 else 0
+                        ngram_scores[ip_indices[i]] = rarity
+        
+        return ngram_scores
+    
+    async def _save_results(self, df: pd.DataFrame, ensemble_score: np.ndarray,
+                           y_pred: np.ndarray, normalized_scores: Dict,
+                           threshold: float) -> Dict:
+        """Save detection results to files"""
+        print(f"\n{'='*70}")
+        print("💾 Saving Results")
+        print(f"{'='*70}")
+        
+        timestamp = file_manager.generate_timestamp()
+        
+        # Full results
+        results_df = df.copy()
+        results_df['anomaly_score'] = ensemble_score
+        results_df['is_anomaly'] = y_pred
+        
+        # Add component scores
+        for name, scores in normalized_scores.items():
+            results_df[f'score_{name}'] = scores
+        
+        # Save full results
+        results_file = file_manager.get_output_path(f"forensiq_results_{timestamp}.csv")
+        results_df.to_csv(results_file, index=False)
+        print(f"✅ Full results: {results_file.name}")
+        
+        # Save anomalies only
+        anomaly_df = results_df[results_df['is_anomaly'] == 1][[
+            'srcip', 'dstip', 'sport', 'dsport', 'proto', 'state',
+            'Stime' if 'Stime' in df.columns else 'stime',
+            'anomaly_score', 'sbytes', 'dbytes'
+        ]].copy()
+        
+        anomalies_file = file_manager.get_output_path(f"anomalies_only_{timestamp}.csv")
+        anomaly_df.to_csv(anomalies_file, index=False)
+        print(f"✅ Anomalies only: {anomalies_file.name}")
+        
+        # Save metadata
+        metadata = {
+            "timestamp": timestamp,
+            "model_config": "Config4_HBOS_COPOD",
+            "weights": self.weights,
+            "features": self.ml_features,
+            "threshold": float(threshold),
+            "total_events": len(df),
+            "anomalies_detected": int(y_pred.sum()),
+            "anomaly_rate": float(y_pred.sum() / len(df))
+        }
+        
+        metadata_file = file_manager.save_metadata(
+            metadata, f"metadata_{timestamp}.json"
+        )
+        print(f"✅ Metadata: {Path(metadata_file).name}")
+        
+        # Register files
+        file_manager.register_file("forensiq_results", str(results_file))
+        file_manager.register_file("anomalies_only", str(anomalies_file))
+        file_manager.register_file("metadata", metadata_file)
+        
+        return {
+            "output_files": {
+                "forensiq_results": str(results_file),
+                "anomalies_only": str(anomalies_file),
+                "metadata": metadata_file
+            },
+            "statistics": {
+                "total_events": len(df),
+                "anomalies_detected": int(y_pred.sum()),
+                "anomaly_rate": float(y_pred.sum() / len(df)),
+                "threshold": float(threshold)
+            }
+        }
+
+
+# Singleton instance
+anomaly_detection_service = AnomalyDetectionService()
+
+
+
+================================================================================
+FILE 13/17: app\services\correlation_engine.py
+================================================================================
+
+"""
+Correlation Engine Service - Module 2
+Hybrid correlation with context and baseline analysis
+"""
+import pandas as pd
+import numpy as np
+from datetime import datetime
+from collections import defaultdict, Counter
+from typing import Dict, List, Tuple, Optional, Set
+import json
+from pathlib import Path
+
+from app.core.config import settings
+from app.core.file_manager import file_manager
+
+
+class HybridCorrelationEngine:
+    """
+    Advanced correlation engine with hybrid approach:
+    1. Load full dataset for baseline establishment
+    2. Use anomalies as trigger points
+    3. Analyze surrounding context (normal + anomaly events)
+    4. Detect gradual escalation patterns
+    5. Calculate baseline deviation scores
+    """
+    
+    def __init__(self):
+        self.time_window = settings.time_window_seconds
+        self.baseline_window = settings.baseline_window_hours * 3600
+        self.context_window = settings.context_window_seconds
+        self.ngram_size = settings.ngram_size
+        self.min_chain_size = settings.min_chain_size
+        self.rarity_threshold = settings.rarity_threshold
+        
+        # Data storage
+        self.full_df = None
+        self.anomaly_df = None
+        self.anomaly_indices = set()
+        
+        # N-gram baseline
+        self.ngram_frequencies = Counter()
+        self.total_ngrams = 0
+        
+        # Baseline cache
+        self.baseline_cache = {}
+        
+        # Statistics
+        self.stats = {
+            'total_events': 0,
+            'total_anomalies': 0,
+            'unique_attackers': 0,
+            'chains_created': 0,
+            'chains_merged': 0,
+            'patterns_detected': defaultdict(int),
+            'escalation_detected': 0,
+            'baseline_deviations': 0
+        }
+    
+    async def correlate(self, full_results_file: str, anomaly_file: str) -> Dict:
+        """
+        Main correlation pipeline
+        
+        Args:
+            full_results_file: forensiq_results_*.csv
+            anomaly_file: anomalies_only_*.csv
+        
+        Returns:
+            Dictionary with output files and statistics
+        """
+        print(f"\n{'='*80}")
+        print("🔗 ForensIQ Hybrid Correlation Engine")
+        print("    Context-Aware Attack Chain Detection")
+        print(f"{'='*80}")
+        
+        # Load data
+        self._load_data(full_results_file, anomaly_file)
+        
+        # Build n-gram baseline
+        self._build_ngram_baseline()
+        
+        # Correlate with context
+        chains = self._correlate_hybrid()
+        
+        # Merge overlaps
+        final_chains = self._merge_overlapping_chains(chains)
+        
+        # Generate summary
+        summary_df = self._generate_summary_table(final_chains)
+        
+        # Print statistics
+        self._print_statistics(final_chains, summary_df)
+        
+        # Save results
+        return await self._save_results(final_chains, summary_df)
+    
+    def _load_data(self, full_results_file: str, anomaly_file: str):
+        """Load both full dataset and anomalies"""
+        print(f"\n{'='*80}")
+        print("📥 Loading Data for Hybrid Correlation")
+        print(f"{'='*80}")
+        
+        # Load full results
+        print(f"\n1️⃣ Loading full dataset: {Path(full_results_file).name}")
+        self.full_df = pd.read_csv(full_results_file, low_memory=False)
+        
+        # Standardize column names
+        if 'Stime' in self.full_df.columns and 'stime' not in self.full_df.columns:
+            self.full_df['stime'] = self.full_df['Stime']
+        
+        self.full_df = self.full_df.sort_values('stime').reset_index(drop=True)
+        self.stats['total_events'] = len(self.full_df)
+        print(f"   ✅ Loaded {len(self.full_df):,} total events")
+        
+        # Load anomalies
+        print(f"\n2️⃣ Loading anomalies: {Path(anomaly_file).name}")
+        self.anomaly_df = pd.read_csv(anomaly_file, low_memory=False)
+        
+        if 'Stime' in self.anomaly_df.columns and 'stime' not in self.anomaly_df.columns:
+            self.anomaly_df['stime'] = self.anomaly_df['Stime']
+        
+        self.stats['total_anomalies'] = len(self.anomaly_df)
+        print(f"   ✅ Loaded {len(self.anomaly_df):,} anomalies")
+        
+        # Build anomaly index
+        print("\n3️⃣ Building anomaly index...")
+        self.anomaly_indices = self._build_anomaly_index()
+        print(f"   ✅ Indexed {len(self.anomaly_indices):,} anomaly events")
+        
+        # Mark anomalies in full dataset
+        self.full_df['is_detected_anomaly'] = self.full_df.index.isin(self.anomaly_indices)
+        
+        # Statistics
+        time_range = (
+            datetime.fromtimestamp(self.full_df['stime'].min()).strftime('%Y-%m-%d %H:%M'),
+            datetime.fromtimestamp(self.full_df['stime'].max()).strftime('%Y-%m-%d %H:%M')
+        )
+        self.stats['unique_attackers'] = self.anomaly_df['srcip'].nunique()
+        
+        print(f"\n📊 Dataset Summary:")
+        print(f"   Time range: {time_range[0]} to {time_range[1]}")
+        print(f"   Unique attacker IPs: {self.stats['unique_attackers']:,}")
+        print(f"   Anomaly rate: {self.stats['total_anomalies']/self.stats['total_events']*100:.2f}%")
+    
+    def _build_anomaly_index(self) -> Set[int]:
+        """Build index mapping anomalies to full dataset"""
+        anomaly_set = set()
+        
+        anomaly_keys = set(
+            tuple(row) for row in
+            self.anomaly_df[['srcip', 'dstip', 'stime']].values
+        )
+        
+        for idx, row in self.full_df.iterrows():
+            key = (row['srcip'], row['dstip'], row['stime'])
+            if key in anomaly_keys:
+                anomaly_set.add(idx)
+        
+        return anomaly_set
+    
+    def _create_event_signature(self, row: pd.Series) -> str:
+        """Create event signature for n-gram analysis"""
+        if 'anomaly_score' in row.index:
+            score = row['anomaly_score']
+        else:
+            score = 0.5
+        
+        if score >= 0.9:
+            level = 'critical'
+        elif score >= 0.7:
+            level = 'high'
+        elif score >= 0.5:
+            level = 'medium'
+        else:
+            level = 'low'
+        
+        proto = str(row.get('proto', 'unknown')).lower()
+        state = str(row.get('state', 'unknown')).upper()
+        
+        return f"{proto}|{state}|{level}"
+    
+    def _build_ngram_baseline(self):
+        """Build n-gram frequency baseline from full dataset"""
+        print(f"\n{'='*80}")
+        print("🧬 Building N-gram Baseline from Full Dataset")
+        print(f"{'='*80}")
+        
+        print(f"   Creating signatures for {len(self.full_df):,} events...")
+        signatures = self.full_df.apply(self._create_event_signature, axis=1).tolist()
+        
+        print(f"   Extracting {self.ngram_size}-grams...")
+        ngrams = self._extract_ngrams(signatures)
+        
+        self.ngram_frequencies = Counter(ngrams)
+        self.total_ngrams = len(ngrams)
+        
+        unique_patterns = len(self.ngram_frequencies)
+        avg_frequency = self.total_ngrams / unique_patterns if unique_patterns > 0 else 0
+        
+        print(f"\n   ✅ Baseline complete:")
+        print(f"      Unique {self.ngram_size}-grams: {unique_patterns:,}")
+        print(f"      Total sequences: {self.total_ngrams:,}")
+        print(f"      Average frequency: {avg_frequency:.2f}")
+        
+        print(f"\n   📊 Top 5 most common patterns:")
+        for pattern, count in self.ngram_frequencies.most_common(5):
+            pattern_str = ' → '.join(pattern)
+            freq_pct = (count / self.total_ngrams) * 100
+            print(f"      {pattern_str}: {count} ({freq_pct:.2f}%)")
+    
+    def _extract_ngrams(self, signatures: List[str]) -> List[Tuple[str, ...]]:
+        """Extract n-gram sequences"""
+        if len(signatures) < self.ngram_size:
+            return []
+        
+        ngrams = []
+        for i in range(len(signatures) - self.ngram_size + 1):
+            ngram = tuple(signatures[i:i + self.ngram_size])
+            ngrams.append(ngram)
+        
+        return ngrams
+    
+    def _build_baseline_for_attacker(self, attacker_ip: str, current_time: int) -> Optional[Dict]:
+        """Build behavioral baseline for an attacker"""
+        cache_key = f"{attacker_ip}_{current_time}"
+        if cache_key in self.baseline_cache:
+            return self.baseline_cache[cache_key]
+        
+        baseline_start = current_time - self.baseline_window
+        
+        baseline_traffic = self.full_df[
+            (self.full_df['srcip'] == attacker_ip) &
+            (self.full_df['stime'] >= baseline_start) &
+            (self.full_df['stime'] < current_time)
+        ]
+        
+        if len(baseline_traffic) < 5:
+            return None
+        
+        total_hours = (current_time - baseline_start) / 3600
+        
+        baseline = {
+            'total_events': len(baseline_traffic),
+            'events_per_hour': len(baseline_traffic) / total_hours,
+            'unique_targets': baseline_traffic['dstip'].nunique(),
+            'target_diversity': baseline_traffic['dstip'].nunique() / len(baseline_traffic),
+            'unique_ports': baseline_traffic['dsport'].nunique(),
+            'common_ports': baseline_traffic['dsport'].value_counts().head(5).to_dict(),
+            'protocols': baseline_traffic['proto'].value_counts().to_dict(),
+            'states': baseline_traffic['state'].value_counts().to_dict(),
+            'avg_sbytes': baseline_traffic['sbytes'].mean(),
+            'avg_dbytes': baseline_traffic['dbytes'].mean(),
+            'total_bytes': baseline_traffic['sbytes'].sum() + baseline_traffic['dbytes'].sum(),
+            'avg_bytes_per_event': (baseline_traffic['sbytes'].sum() + baseline_traffic['dbytes'].sum()) / len(baseline_traffic)
+        }
+        
+        self.baseline_cache[cache_key] = baseline
+        return baseline
+    
+    def _detect_gradual_escalation(self, events: pd.DataFrame) -> Dict:
+        """Detect gradual escalation from normal to anomalous behavior"""
+        if len(events) < 5:
+            return {'is_escalating': False, 'escalation_rate': 0.0}
+        
+        events = events.sort_values('stime')
+        
+        chunk_size = len(events) // 5
+        if chunk_size == 0:
+            return {'is_escalating': False, 'escalation_rate': 0.0}
+        
+        anomaly_ratios = []
+        for i in range(5):
+            start_idx = i * chunk_size
+            end_idx = start_idx + chunk_size if i < 4 else len(events)
+            chunk = events.iloc[start_idx:end_idx]
+            
+            anomaly_ratio = chunk['is_detected_anomaly'].mean()
+            anomaly_ratios.append(anomaly_ratio)
+        
+        is_escalating = all(
+            anomaly_ratios[i] <= anomaly_ratios[i+1]
+            for i in range(len(anomaly_ratios)-1)
+        )
+        
+        if is_escalating and anomaly_ratios[0] < anomaly_ratios[-1]:
+            escalation_rate = (anomaly_ratios[-1] - anomaly_ratios[0]) / 5
+        else:
+            escalation_rate = 0.0
+        
+        return {
+            'is_escalating': is_escalating,
+            'escalation_rate': escalation_rate,
+            'anomaly_progression': anomaly_ratios,
+            'start_ratio': anomaly_ratios[0],
+            'end_ratio': anomaly_ratios[-1]
+        }
+    
+    def _calculate_baseline_deviation(self, current_metrics: Dict, baseline: Optional[Dict]) -> Dict:
+        """Calculate deviation from baseline behavior"""
+        if baseline is None:
+            return {
+                'deviation_score': 0.0,
+                'has_baseline': False,
+                'deviations': {}
+            }
+        
+        deviations = {}
+        deviation_score = 0.0
+        
+        # Event frequency deviation
+        freq_ratio = current_metrics['events_per_hour'] / baseline['events_per_hour']
+        if freq_ratio > 3:
+            deviations['frequency'] = {
+                'current': current_metrics['events_per_hour'],
+                'baseline': baseline['events_per_hour'],
+                'ratio': freq_ratio,
+                'severity': 'HIGH' if freq_ratio > 10 else 'MEDIUM'
+            }
+            deviation_score += 0.3
+        
+        # Target diversity deviation
+        if baseline['target_diversity'] > 0:
+            target_ratio = current_metrics['target_diversity'] / baseline['target_diversity']
+            if target_ratio > 2:
+                deviations['target_diversity'] = {
+                    'current': current_metrics['target_diversity'],
+                    'baseline': baseline['target_diversity'],
+                    'ratio': target_ratio,
+                    'severity': 'HIGH' if target_ratio > 5 else 'MEDIUM'
+                }
+                deviation_score += 0.3
+        
+        # New port usage
+        current_ports = set(current_metrics.get('ports', []))
+        baseline_ports = set(baseline['common_ports'].keys())
+        new_ports = current_ports - baseline_ports
+        
+        if len(new_ports) > 3:
+            deviations['new_ports'] = {
+                'count': len(new_ports),
+                'ports': list(new_ports)[:10],
+                'severity': 'HIGH' if len(new_ports) > 10 else 'MEDIUM'
+            }
+            deviation_score += 0.2
+        
+        # Data volume deviation
+        if baseline['avg_bytes_per_event'] > 0:
+            byte_ratio = current_metrics['avg_bytes_per_event'] / baseline['avg_bytes_per_event']
+            if byte_ratio > 5:
+                deviations['data_volume'] = {
+                    'current': current_metrics['avg_bytes_per_event'],
+                    'baseline': baseline['avg_bytes_per_event'],
+                    'ratio': byte_ratio,
+                    'severity': 'HIGH' if byte_ratio > 20 else 'MEDIUM'
+                }
+                deviation_score += 0.2
+        
+        return {
+            'deviation_score': min(1.0, deviation_score),
+            'has_baseline': True,
+            'deviations': deviations,
+            'baseline_window_hours': self.baseline_window / 3600
+        }
+    
+    def _correlate_hybrid(self) -> List[Dict]:
+        """Main hybrid correlation logic"""
+        print(f"\n{'='*80}")
+        print("🔗 Hybrid Correlation: Context + Baseline Analysis")
+        print(f"{'='*80}")
+        
+        chains = []
+        chain_id = 1
+        
+        attacker_groups = self.anomaly_df.groupby('srcip')
+        
+        print(f"\n   Processing {len(attacker_groups)} unique attackers...")
+        
+        for attacker_ip, anomaly_group in attacker_groups:
+            if len(anomaly_group) < self.min_chain_size:
+                continue
+            
+            anomaly_group = anomaly_group.sort_values('stime')
+            first_anomaly_time = anomaly_group['stime'].min()
+            
+            baseline = self._build_baseline_for_attacker(attacker_ip, first_anomaly_time)
+            
+            window_start = 0
+            
+            while window_start < len(anomaly_group):
+                window_end_time = anomaly_group.iloc[window_start]['stime'] + self.time_window
+                
+                window_anomalies = anomaly_group[
+                    anomaly_group['stime'] <= window_end_time
+                ].iloc[window_start:]
+                
+                if len(window_anomalies) < self.min_chain_size:
+                    window_start += 1
+                    continue
+                
+                context_start = window_anomalies['stime'].min() - self.context_window
+                context_end = window_anomalies['stime'].max() + self.context_window
+                
+                context_events = self.full_df[
+                    (self.full_df['srcip'] == attacker_ip) &
+                    (self.full_df['stime'] >= context_start) &
+                    (self.full_df['stime'] <= context_end)
+                ].copy()
+                
+                if len(context_events) >= self.min_chain_size:
+                    chain = self._create_hybrid_chain(
+                        context_events,
+                        attacker_ip,
+                        f"CHAIN_{chain_id:04d}",
+                        baseline
+                    )
+                    
+                    if chain:
+                        chains.append(chain)
+                        chain_id += 1
+                
+                window_start += max(1, len(window_anomalies) // 2)
+        
+        self.stats['chains_created'] = len(chains)
+        print(f"\n   ✅ Created {len(chains)} attack chains with context")
+        
+        return chains
+    
+    def _create_hybrid_chain(self, events: pd.DataFrame, attacker_ip: str,
+                            chain_id: str, baseline: Optional[Dict]) -> Optional[Dict]:
+        """Create attack chain with hybrid analysis"""
+        events = events.sort_values('stime')
+        
+        total_hours = (events['stime'].max() - events['stime'].min()) / 3600
+        if total_hours == 0:
+            total_hours = 0.01
+        
+        current_metrics = {
+            'events_per_hour': len(events) / total_hours,
+            'target_diversity': events['dstip'].nunique() / len(events),
+            'ports': events['dsport'].unique().tolist(),
+            'avg_bytes_per_event': (events['sbytes'].sum() + events['dbytes'].sum()) / len(events)
+        }
+        
+        deviation_analysis = self._calculate_baseline_deviation(current_metrics, baseline)
+        if deviation_analysis['deviation_score'] > 0.3:
+            self.stats['baseline_deviations'] += 1
+        
+        escalation_analysis = self._detect_gradual_escalation(events)
+        if escalation_analysis['is_escalating']:
+            self.stats['escalation_detected'] += 1
+        
+        signatures = events.apply(self._create_event_signature, axis=1).tolist()
+        ngrams = self._extract_ngrams(signatures)
+        ngram_rarity = self._calculate_ngram_rarity(ngrams)
+        rare_patterns = self._identify_rare_patterns(ngrams)
+        
+        attack_pattern = self._detect_attack_pattern(events)
+        self.stats['patterns_detected'][attack_pattern] += 1
+        
+        severity = self._calculate_hybrid_severity(
+            events,
+            ngram_rarity,
+            rare_patterns,
+            deviation_analysis,
+            escalation_analysis
+        )
+        
+        normal_events = events[~events['is_detected_anomaly']]
+        anomaly_events = events[events['is_detected_anomaly']]
+        
+        chain = {
+            'chain_id': chain_id,
+            'severity': round(severity, 2),
+            'severity_level': self._classify_severity(severity),
+            
+            'attacker_ip': attacker_ip,
+            'target_ips': events['dstip'].unique().tolist(),
+            'num_targets': events['dstip'].nunique(),
+            
+            'start_time': int(events['stime'].min()),
+            'end_time': int(events['stime'].max()),
+            'duration': int(events['stime'].max() - events['stime'].min()),
+            
+            'total_events': len(events),
+            'anomaly_events': len(anomaly_events),
+            'normal_events': len(normal_events),
+            'anomaly_ratio': len(anomaly_events) / len(events),
+            
+            'attack_pattern': attack_pattern,
+            
+            'avg_anomaly_score': float(events['anomaly_score'].mean()) if 'anomaly_score' in events.columns else 0.0,
+            'max_anomaly_score': float(events['anomaly_score'].max()) if 'anomaly_score' in events.columns else 0.0,
+            
+            'ngram_rarity': round(ngram_rarity, 4),
+            'rare_patterns': rare_patterns[:5],
+            'total_rare_patterns': len(rare_patterns),
+            
+            'baseline_deviation': deviation_analysis,
+            'escalation_analysis': escalation_analysis,
+            
+            'protocols': events['proto'].value_counts().to_dict(),
+            'states': events['state'].value_counts().to_dict(),
+            'unique_dst_ports': events['dsport'].nunique(),
+            'common_ports': events['dsport'].value_counts().head(10).to_dict(),
+            'total_bytes': int(events['sbytes'].sum() + events['dbytes'].sum()),
+            
+            'sample_normal_events': normal_events[[
+                'stime', 'srcip', 'dstip', 'sport', 'dsport',
+                'proto', 'state', 'sbytes', 'dbytes'
+            ]].head(10).to_dict('records') if len(normal_events) > 0 else [],
+            
+            'anomaly_events_detail': anomaly_events[[
+                'stime', 'srcip', 'dstip', 'sport', 'dsport',
+                'proto', 'state', 'sbytes', 'dbytes', 'anomaly_score'
+            ]].to_dict('records') if 'anomaly_score' in anomaly_events.columns else []
+        }
+        
+        return chain
+    
+    def _calculate_ngram_rarity(self, ngrams: List[Tuple[str, ...]]) -> float:
+        """Calculate rarity score for n-gram sequence"""
+        if not ngrams or self.total_ngrams == 0:
+            return 0.0
+        
+        rarity_scores = []
+        for ngram in ngrams:
+            freq = self.ngram_frequencies.get(ngram, 0)
+            normalized_freq = freq / self.total_ngrams
+            rarity = 1.0 - normalized_freq
+            rarity_scores.append(rarity)
+        
+        return np.mean(rarity_scores)
+    
+    def _identify_rare_patterns(self, ngrams: List[Tuple[str, ...]]) -> List[Dict]:
+        """Identify rare n-gram patterns"""
+        rare_patterns = []
+        
+        for ngram in ngrams:
+            freq = self.ngram_frequencies.get(ngram, 0)
+            freq_ratio = freq / self.total_ngrams if self.total_ngrams > 0 else 0
+            rarity = 1.0 - freq_ratio
+            
+            if rarity >= self.rarity_threshold:
+                pattern_str = ' → '.join(ngram)
+                rare_patterns.append({
+                    'pattern': pattern_str,
+                    'rarity': round(rarity, 4),
+                    'frequency': freq,
+                    'percentile': round(rarity * 100, 2)
+                })
+        
+        rare_patterns.sort(key=lambda x: x['rarity'], reverse=True)
+        return rare_patterns
+    
+    def _calculate_hybrid_severity(self, events: pd.DataFrame, ngram_rarity: float,
+                                   rare_patterns: List[Dict], deviation_analysis: Dict,
+                                   escalation_analysis: Dict) -> float:
+        """Enhanced severity calculation"""
+        severity = 0.0
+        
+        # Event count (15 points)
+        event_count = len(events)
+        severity += min(15, (event_count / 50) * 15)
+        
+        # Max anomaly score (20 points)
+        if 'anomaly_score' in events.columns:
+            max_score = events['anomaly_score'].max()
+            severity += max_score * 20
+        
+        # N-gram rarity (15 points)
+        severity += ngram_rarity * 15
+        
+        # Target diversity (10 points)
+        num_targets = events['dstip'].nunique()
+        severity += min(10, (num_targets / 10) * 10)
+        
+        # Data volume (10 points)
+        total_bytes = events['sbytes'].sum() + events['dbytes'].sum()
+        severity += min(10, (total_bytes / 10000000) * 10)
+        
+        # Rare pattern bonus (10 points)
+        if rare_patterns:
+            top_rarities = [p['rarity'] for p in rare_patterns[:3]]
+            severity += np.mean(top_rarities) * 10
+        
+        # Baseline deviation (15 points)
+        if deviation_analysis['has_baseline']:
+            severity += deviation_analysis['deviation_score'] * 15
+        
+        # Escalation bonus (5 points)
+        if escalation_analysis['is_escalating']:
+            severity += escalation_analysis['escalation_rate'] * 50
+        
+        return min(100.0, severity)
+    
+    def _detect_attack_pattern(self, events: pd.DataFrame) -> str:
+        """Detect attack pattern from behavioral signatures"""
+        num_events = len(events)
+        num_targets = events['dstip'].nunique()
+        num_ports = events['dsport'].nunique()
+        duration = events['stime'].max() - events['stime'].min()
+        total_bytes = events['sbytes'].sum() + events['dbytes'].sum()
+        
+        # Port scan
+        if num_ports >= 10 and num_targets <= 5 and duration <= 120:
+            return 'PORT_SCAN'
+        
+        # Brute force
+        auth_ports = events['dsport'].isin([22, 3389, 21, 23])
+        if num_events >= 20 and auth_ports.any() and num_targets <= 2:
+            return 'BRUTE_FORCE'
+        
+        # Lateral movement
+        if num_targets >= 3 and duration >= 300:
+            return 'LATERAL_MOVEMENT'
+        
+        # Data exfiltration
+        if total_bytes >= 1000000 and duration >= 120:
+            return 'DATA_EXFILTRATION'
+        
+        # DDoS
+        if num_events >= 100 and duration <= 120 and num_targets == 1:
+            return 'DDOS'
+        
+        # Reconnaissance
+        if num_ports >= 5 and total_bytes < 100000:
+            return 'RECONNAISSANCE'
+        
+        return 'UNKNOWN'
+    
+    def _classify_severity(self, severity: float) -> str:
+        """Classify severity into levels"""
+        if severity >= 75:
+            return 'CRITICAL'
+        elif severity >= 50:
+            return 'HIGH'
+        elif severity >= 25:
+            return 'MEDIUM'
+        else:
+            return 'LOW'
+    
+    def _merge_overlapping_chains(self, chains: List[Dict]) -> List[Dict]:
+        """Merge temporally overlapping chains"""
+        print("\n🔗 Merging overlapping chains...")
+        
+        if not chains:
+            return []
+        
+        attacker_groups = defaultdict(list)
+        for chain in chains:
+            attacker_groups[chain['attacker_ip']].append(chain)
+        
+        merged_chains = []
+        merge_count = 0
+        
+        for attacker_ip, attacker_chains in attacker_groups.items():
+            attacker_chains.sort(key=lambda x: x['start_time'])
+            
+            current_chain = attacker_chains[0]
+            
+            for next_chain in attacker_chains[1:]:
+                time_gap = next_chain['start_time'] - current_chain['end_time']
+                
+                if time_gap <= 60:
+                    current_chain = self._merge_two_chains(current_chain, next_chain)
+                    merge_count += 1
+                else:
+                    merged_chains.append(current_chain)
+                    current_chain = next_chain
+            
+            merged_chains.append(current_chain)
+        
+        self.stats['chains_merged'] = merge_count
+        print(f"   ✅ Merged {merge_count} overlapping chains")
+        print(f"   Final chain count: {len(merged_chains)}")
+        
+        return merged_chains
+    
+    def _merge_two_chains(self, chain1: Dict, chain2: Dict) -> Dict:
+        """Merge two chains"""
+        merged = chain1.copy()
+        
+        merged['start_time'] = min(chain1['start_time'], chain2['start_time'])
+        merged['end_time'] = max(chain1['end_time'], chain2['end_time'])
+        merged['duration'] = merged['end_time'] - merged['start_time']
+        
+        all_targets = set(chain1['target_ips'] + chain2['target_ips'])
+        merged['target_ips'] = list(all_targets)
+        merged['num_targets'] = len(all_targets)
+        
+        merged['total_events'] = chain1['total_events'] + chain2['total_events']
+        merged['anomaly_events'] = chain1['anomaly_events'] + chain2['anomaly_events']
+        merged['normal_events'] = chain1['normal_events'] + chain2['normal_events']
+        merged['anomaly_ratio'] = merged['anomaly_events'] / merged['total_events']
+        
+        merged['avg_anomaly_score'] = (
+            chain1['avg_anomaly_score'] * chain1['total_events'] +
+            chain2['avg_anomaly_score'] * chain2['total_events']
+        ) / merged['total_events']
+        
+        merged['max_anomaly_score'] = max(
+            chain1['max_anomaly_score'],
+            chain2['max_anomaly_score']
+        )
+        
+        merged['severity'] = max(chain1['severity'], chain2['severity'])
+        merged['severity_level'] = self._classify_severity(merged['severity'])
+        
+        merged['total_bytes'] = chain1['total_bytes'] + chain2['total_bytes']
+        
+        return merged
+    
+    def _generate_summary_table(self, chains: List[Dict]) -> pd.DataFrame:
+        """Generate summary table"""
+        summary_data = []
+        
+        for chain in chains:
+            summary_data.append({
+                'chain_id': chain['chain_id'],
+                'severity_level': chain['severity_level'],
+                'severity_score': chain['severity'],
+                'attacker_ip': chain['attacker_ip'],
+                'num_targets': chain['num_targets'],
+                'total_events': chain['total_events'],
+                'anomaly_events': chain['anomaly_events'],
+                'normal_events': chain['normal_events'],
+                'anomaly_ratio': round(chain['anomaly_ratio'], 3),
+                'attack_pattern': chain['attack_pattern'],
+                'start_time': datetime.fromtimestamp(chain['start_time']).strftime('%Y-%m-%d %H:%M:%S'),
+                'duration_sec': chain['duration'],
+                'avg_anomaly_score': chain['avg_anomaly_score'],
+                'ngram_rarity': chain['ngram_rarity'],
+                'baseline_deviation': chain['baseline_deviation']['deviation_score'],
+                'is_escalating': chain['escalation_analysis']['is_escalating'],
+                'total_bytes': chain['total_bytes']
+            })
+        
+        df = pd.DataFrame(summary_data)
+        df = df.sort_values('severity_score', ascending=False).reset_index(drop=True)
+        
+        return df
+    
+    def _print_statistics(self, chains: List[Dict], summary_df: pd.DataFrame):
+        """Print statistics"""
+        print(f"\n{'='*80}")
+        print("📊 HYBRID CORRELATION ENGINE STATISTICS")
+        print(f"{'='*80}")
+        
+        print(f"\n🔢 Processing Summary:")
+        print(f"   Total events processed: {self.stats['total_events']:,}")
+        print(f"   Total anomalies: {self.stats['total_anomalies']:,}")
+        print(f"   Unique attackers: {self.stats['unique_attackers']:,}")
+        print(f"   Preliminary chains created: {self.stats['chains_created']:,}")
+        print(f"   Chains merged: {self.stats['chains_merged']:,}")
+        print(f"   Final attack chains: {len(chains):,}")
+        
+        print(f"\n📈 Severity Distribution:")
+        for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+            count = len(summary_df[summary_df['severity_level'] == level])
+            pct = (count / len(summary_df) * 100) if len(summary_df) > 0 else 0
+            print(f"   {level:8s}: {count:4d} chains ({pct:5.1f}%)")
+        
+        print(f"\n🎯 Attack Pattern Distribution:")
+        for pattern, count in self.stats['patterns_detected'].items():
+            pct = (count / len(chains) * 100) if len(chains) > 0 else 0
+            print(f"   {pattern:20s}: {count:4d} chains ({pct:5.1f}%)")
+        
+        print(f"\n🔍 Hybrid Features Detected:")
+        print(f"   Chains with baseline deviation: {self.stats['baseline_deviations']:,}")
+        print(f"   Chains with escalation pattern: {self.stats['escalation_detected']:,}")
+    
+    async def _save_results(self, chains: List[Dict], summary_df: pd.DataFrame) -> Dict:
+        """Save results"""
+        timestamp = file_manager.generate_timestamp()
+        
+        # Full chains (JSON)
+        chains_file = file_manager.get_output_path(f"hybrid_attack_chains_{timestamp}.json")
+        with open(chains_file, 'w') as f:
+            json.dump(chains, f, indent=2)
+        
+        # Summary (CSV)
+        summary_file = file_manager.get_output_path(f"hybrid_chain_summary_{timestamp}.csv")
+        summary_df.to_csv(summary_file, index=False)
+        
+        # Statistics
+        stats_file = file_manager.get_output_path(f"hybrid_correlation_stats_{timestamp}.json")
+        stats_copy = self.stats.copy()
+        stats_copy['patterns_detected'] = dict(stats_copy['patterns_detected'])
+        with open(stats_file, 'w') as f:
+            json.dump(stats_copy, f, indent=2)
+        
+        print(f"\n💾 Results saved:")
+        print(f"   Full chains: {chains_file.name}")
+        print(f"   Summary: {summary_file.name}")
+        print(f"   Statistics: {stats_file.name}")
+        
+        # Register files
+        file_manager.register_file("attack_chains", str(chains_file))
+        file_manager.register_file("chain_summary", str(summary_file))
+        file_manager.register_file("correlation_stats", str(stats_file))
+        
+        return {
+            "output_files": {
+                "attack_chains": str(chains_file),
+                "chain_summary": str(summary_file),
+                "statistics": str(stats_file)
+            },
+            "statistics": {
+                "total_chains": len(chains),
+                "unique_attackers": self.stats['unique_attackers'],
+                "baseline_deviations": self.stats['baseline_deviations'],
+                "escalations_detected": self.stats['escalation_detected']
+            }
+        }
+
+
+# Singleton instance
+correlation_engine = HybridCorrelationEngine()
+
+
+
+================================================================================
+FILE 14/17: app\services\ip_enricher.py
+================================================================================
+
+"""
+IP Enrichment Service - Module 3
+Ground truth IP reputation from UNSW dataset labels
+"""
+import pandas as pd
+import json
+from datetime import datetime
+from pathlib import Path
+from collections import Counter
+from typing import Dict, Optional
+
+from app.core.file_manager import file_manager
+
+
+class IPEnrichmentService:
+    """
+    Enriches attack chains with ground truth IP reputation
+    Uses UNSW dataset labels + behavior analysis
+    """
+    
+    def __init__(self):
+        self.ground_truth_reputation = {}
+    
+    async def enrich_chains(self, chains_file: str, dataset_file: str) -> Dict:
+        """
+        Enrich attack chains with IP reputation
+        
+        Args:
+            chains_file: Path to attack chains JSON
+            dataset_file: Path to UNSW dataset for ground truth
+        
+        Returns:
+            Dictionary with output files and statistics
+        """
+        print(f"\n{'='*80}")
+        print("🎯 Ground Truth IP Reputation Enrichment")
+        print("   Using UNSW Dataset Labels + Behavior Analysis")
+        print(f"{'='*80}")
+        
+        # Extract ground truth IP reputation
+        self._extract_malicious_ips(dataset_file)
+        
+        # Load chains
+        print(f"\n📥 Loading attack chains...")
+        with open(chains_file, 'r') as f:
+            chains = json.load(f)
+        
+        print(f"   ✅ Loaded {len(chains)} chains")
+        
+        # Enrich chains
+        print(f"\n💎 Enriching chains with ground truth reputation...")
+        
+        enriched_count = 0
+        for chain in chains:
+            attacker_ip = chain['attacker_ip']
+            
+            # Get ground truth data
+            ground_truth = self.ground_truth_reputation.get(attacker_ip, {})
+            
+            if ground_truth:
+                # Calculate scores
+                gt_score = ground_truth['abuse_score']
+                behavior_score = self._calculate_behavior_score(chain)
+                
+                # Combined score (70% ground truth, 30% behavior)
+                final_score = int((gt_score * 0.7) + (behavior_score * 0.3))
+                
+                # Create reputation entry
+                chain['ip_reputation'] = {
+                    'ip': attacker_ip,
+                    'abuse_score': final_score,
+                    'ground_truth_score': gt_score,
+                    'behavior_score': behavior_score,
+                    'total_records': ground_truth.get('total_records', 0),
+                    'malicious_records': ground_truth.get('malicious_records', 0),
+                    'malicious_ratio': ground_truth.get('malicious_ratio', 0),
+                    'attack_types_detected': ground_truth.get('attack_types', {}),
+                    'total_reports': ground_truth.get('malicious_records', 0),
+                    'num_distinct_users': int(ground_truth.get('malicious_records', 0) * 0.3),
+                    'severity': self._classify_severity(final_score),
+                    'country_code': 'UNKNOWN',  # Can be enriched with GeoIP
+                    'scoring_method': 'Ground Truth (70%) + Behavior (30%)',
+                    'data_sources': ['UNSW Dataset Labels', 'Behavior Analysis'],
+                    'enriched_at': datetime.now().isoformat()
+                }
+                enriched_count += 1
+            else:
+                # Fallback to behavior-only
+                behavior_score = self._calculate_behavior_score(chain)
+                
+                chain['ip_reputation'] = {
+                    'ip': attacker_ip,
+                    'abuse_score': behavior_score,
+                    'ground_truth_score': 0,
+                    'behavior_score': behavior_score,
+                    'total_records': 0,
+                    'malicious_records': 0,
+                    'malicious_ratio': 0,
+                    'attack_types_detected': {},
+                    'total_reports': 0,
+                    'num_distinct_users': 0,
+                    'severity': self._classify_severity(behavior_score),
+                    'country_code': 'UNKNOWN',
+                    'scoring_method': 'Behavior Analysis Only',
+                    'data_sources': ['Behavior Analysis'],
+                    'enriched_at': datetime.now().isoformat()
+                }
+        
+        print(f"   ✅ Enriched {enriched_count}/{len(chains)} chains with ground truth data")
+        
+        # Print statistics
+        self._print_statistics(chains)
+        
+        # Save results
+        return await self._save_results(chains)
+    
+    def _extract_malicious_ips(self, dataset_file: str):
+        """Extract malicious IPs from UNSW dataset using ground truth labels"""
+        print(f"\n{'='*80}")
+        print("🔍 Extracting Ground Truth IP Reputation from UNSW Dataset")
+        print(f"{'='*80}")
+        
+        print(f"\n📥 Loading dataset: {Path(dataset_file).name}")
+        df = pd.read_csv(dataset_file, low_memory=False)
+        
+        print(f"   ✅ Loaded {len(df):,} records")
+        
+        # Check for label column
+        label_col = None
+        for col in ['label', 'Label', 'attack_cat', 'Attack_cat']:
+            if col in df.columns:
+                label_col = col
+                break
+        
+        if label_col is None:
+            print("\n⚠️  No label column found. Using behavior-only scoring.")
+            return
+        
+        print(f"\n✅ Found label column: '{label_col}'")
+        print(f"   Unique labels: {df[label_col].nunique()}")
+        
+        # Analyze malicious IPs
+        print("\n🔍 Analyzing attacker IPs (srcip)...")
+        
+        ip_reputation = {}
+        
+        for ip in df['srcip'].unique():
+            ip_data = df[df['srcip'] == ip]
+            total_records = len(ip_data)
+            
+            # Check if label indicates attack
+            malicious_records = ip_data[
+                (ip_data[label_col] != 'Normal') &
+                (ip_data[label_col] != 0) &
+                (ip_data[label_col] != '0')
+            ]
+            
+            malicious_count = len(malicious_records)
+            malicious_ratio = malicious_count / total_records if total_records > 0 else 0
+            
+            # Get attack categories
+            if len(malicious_records) > 0:
+                attack_types = malicious_records[label_col].value_counts().to_dict()
+            else:
+                attack_types = {}
+            
+            # Calculate abuse score
+            abuse_score = int(malicious_ratio * 100)
+            
+            # Store IP reputation
+            ip_reputation[ip] = {
+                'ip': ip,
+                'abuse_score': abuse_score,
+                'total_records': total_records,
+                'malicious_records': malicious_count,
+                'malicious_ratio': round(malicious_ratio, 3),
+                'attack_types': attack_types,
+                'severity': self._classify_severity(abuse_score),
+                'data_source': 'UNSW Dataset Ground Truth'
+            }
+        
+        self.ground_truth_reputation = ip_reputation
+        
+        # Statistics
+        print(f"\n📊 IP Reputation Statistics:")
+        print(f"   Total unique IPs analyzed: {len(ip_reputation)}")
+        
+        malicious_ips = [ip for ip, data in ip_reputation.items() if data['abuse_score'] > 0]
+        print(f"   Malicious IPs (score > 0): {len(malicious_ips)}")
+        
+        severity_counts = Counter(data['severity'] for data in ip_reputation.values())
+        print(f"\n   Severity Distribution:")
+        for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+            count = severity_counts.get(severity, 0)
+            pct = (count / len(ip_reputation) * 100) if ip_reputation else 0
+            print(f"      {severity:8s}: {count:3d} IPs ({pct:5.1f}%)")
+    
+    def _calculate_behavior_score(self, chain: Dict) -> int:
+        """Calculate behavior-based threat score"""
+        score = 0
+        
+        # Anomaly ratio (0-30 points)
+        score += min(30, chain['anomaly_ratio'] * 100 * 0.3)
+        
+        # Attack severity (0-25 points)
+        score += min(25, (chain['severity'] / 100) * 25)
+        
+        # Attack pattern (0-20 points)
+        pattern_scores = {
+            'BRUTE_FORCE': 20,
+            'DATA_EXFILTRATION': 18,
+            'LATERAL_MOVEMENT': 16,
+            'DDOS': 15,
+            'PORT_SCAN': 12,
+            'RECONNAISSANCE': 10,
+            'UNKNOWN': 5
+        }
+        score += pattern_scores.get(chain['attack_pattern'], 5)
+        
+        # Baseline deviation (0-15 points)
+        score += min(15, chain['baseline_deviation']['deviation_score'] * 15)
+        
+        # Escalation (0-10 points)
+        if chain['escalation_analysis']['is_escalating']:
+            score += min(10, chain['escalation_analysis']['escalation_rate'] * 100)
+        
+        return int(min(100, score))
+    
+    def _classify_severity(self, score: int) -> str:
+        """Classify severity level"""
+        if score >= 75:
+            return 'CRITICAL'
+        elif score >= 50:
+            return 'HIGH'
+        elif score >= 25:
+            return 'MEDIUM'
+        else:
+            return 'LOW'
+    
+    def _print_statistics(self, chains: list):
+        """Print enrichment statistics"""
+        print(f"\n{'='*80}")
+        print("📊 GROUND TRUTH IP REPUTATION STATISTICS")
+        print(f"{'='*80}")
+        
+        # Severity distribution
+        severity_counts = {'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0}
+        for chain in chains:
+            severity_counts[chain['ip_reputation']['severity']] += 1
+        
+        print(f"\n🎯 Threat Severity Distribution:")
+        for severity, count in severity_counts.items():
+            pct = (count / len(chains) * 100)
+            bar = '█' * int(pct / 2)
+            print(f"   {severity:8s}: {count:3d} chains ({pct:5.1f}%) {bar}")
+        
+        # Top threats
+        chains_sorted = sorted(chains,
+                              key=lambda x: x['ip_reputation']['abuse_score'],
+                              reverse=True)
+        
+        print(f"\n🔥 Top 10 Most Dangerous Attackers:")
+        print(f"{'Chain ID':<12} {'IP':<18} {'GT Score':>8} {'Behavior':>8} {'Final':>6} {'Pattern':<20}")
+        print("-" * 90)
+        
+        for chain in chains_sorted[:10]:
+            rep = chain['ip_reputation']
+            gt_score = rep.get('ground_truth_score', 0)
+            bh_score = rep.get('behavior_score', 0)
+            
+            print(f"{chain['chain_id']:<12} {rep['ip']:<18} {gt_score:>8} "
+                  f"{bh_score:>8} {rep['abuse_score']:>6} {chain['attack_pattern']:<20}")
+        
+        # Attack types from ground truth
+        print(f"\n📋 Attack Types Detected (Ground Truth):")
+        all_attack_types = Counter()
+        
+        for chain in chains:
+            attack_types = chain['ip_reputation'].get('attack_types_detected', {})
+            for attack_type, count in attack_types.items():
+                all_attack_types[attack_type] += count
+        
+        for attack_type, count in all_attack_types.most_common(10):
+            print(f"   {attack_type:<30}: {count:>6,} records")
+        
+        # Scoring breakdown
+        with_ground_truth = len([c for c in chains if c['ip_reputation'].get('ground_truth_score', 0) > 0])
+        
+        print(f"\n💡 Scoring Breakdown:")
+        print(f"   Chains with ground truth data: {with_ground_truth}/{len(chains)}")
+        print(f"   Scoring method: Ground Truth (70%) + Behavior (30%)")
+        
+        print(f"\n{'='*80}")
+    
+    async def _save_results(self, chains: list) -> Dict:
+        """Save enriched results"""
+        timestamp = file_manager.generate_timestamp()
+        
+        # Save enriched chains
+        output_file = file_manager.get_output_path(
+            f"enriched_chains_{timestamp}_ground_truth.json"
+        )
+        
+        with open(output_file, 'w') as f:
+            json.dump(chains, f, indent=2)
+        
+        print(f"\n✅ Enhanced chains saved: {output_file.name}")
+        
+        # Register file
+        file_manager.register_file("enriched_chains", str(output_file))
+        
+        # Calculate statistics
+        severity_counts = Counter(
+            chain['ip_reputation']['severity'] for chain in chains
+        )
+        
+        with_ground_truth = len([
+            c for c in chains
+            if c['ip_reputation'].get('ground_truth_score', 0) > 0
+        ])
+        
+        return {
+            "output_files": {
+                "enriched_chains": str(output_file)
+            },
+            "statistics": {
+                "total_chains": len(chains),
+                "chains_with_ground_truth": with_ground_truth,
+                "severity_distribution": dict(severity_counts),
+                "average_abuse_score": sum(
+                    c['ip_reputation']['abuse_score'] for c in chains
+                ) / len(chains) if chains else 0
+            }
+        }
+
+
+# Singleton instance
+ip_enrichment_service = IPEnrichmentService()
+
+
+
+================================================================================
+FILE 15/17: app\services\mitre_mapper.py
+================================================================================
+
+"""
+MITRE ATT&CK Mapping Service - Module 4
+Maps attack chains to MITRE ATT&CK framework
+"""
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
+from collections import Counter
+
+from app.core.file_manager import file_manager
+
+
+class MITREAttackMapper:
+    """
+    Maps attack chains to MITRE ATT&CK framework
+    Provides tactics, techniques, and sub-techniques classification
+    """
+    
+    def __init__(self):
+        # MITRE ATT&CK Tactics (ordered by attack lifecycle)
+        self.tactics = {
+            'TA0043': {'name': 'Reconnaissance', 'description': 'Gathering information about target'},
+            'TA0001': {'name': 'Initial Access', 'description': 'Trying to get into network'},
+            'TA0002': {'name': 'Execution', 'description': 'Running malicious code'},
+            'TA0003': {'name': 'Persistence', 'description': 'Maintaining foothold'},
+            'TA0004': {'name': 'Privilege Escalation', 'description': 'Gaining higher privileges'},
+            'TA0005': {'name': 'Defense Evasion', 'description': 'Avoiding detection'},
+            'TA0006': {'name': 'Credential Access', 'description': 'Stealing credentials'},
+            'TA0007': {'name': 'Discovery', 'description': 'Exploring environment'},
+            'TA0008': {'name': 'Lateral Movement', 'description': 'Moving through network'},
+            'TA0009': {'name': 'Collection', 'description': 'Gathering data of interest'},
+            'TA0011': {'name': 'Command and Control', 'description': 'Communicating with systems'},
+            'TA0010': {'name': 'Exfiltration', 'description': 'Stealing data'},
+            'TA0040': {'name': 'Impact', 'description': 'Disrupting operations'}
+        }
+        
+        # MITRE ATT&CK Techniques mapping
+        self.technique_mappings = {
+            'PORT_SCAN': {
+                'tactics': ['TA0043'],
+                'techniques': [
+                    {
+                        'id': 'T1046',
+                        'name': 'Network Service Discovery',
+                        'description': 'Adversaries scan target network to identify services',
+                        'indicators': ['multiple_ports', 'scan_pattern', 'low_data_transfer']
+                    }
+                ]
+            },
+            'RECONNAISSANCE': {
+                'tactics': ['TA0043', 'TA0007'],
+                'techniques': [
+                    {
+                        'id': 'T1595',
+                        'name': 'Active Scanning',
+                        'description': 'Scanning IP blocks, ports, or services',
+                        'indicators': ['multiple_targets', 'sequential_scanning']
+                    },
+                    {
+                        'id': 'T1590',
+                        'name': 'Gather Victim Network Information',
+                        'description': 'Collecting network topology information',
+                        'indicators': ['network_mapping', 'service_enumeration']
+                    }
+                ]
+            },
+            'BRUTE_FORCE': {
+                'tactics': ['TA0006', 'TA0001'],
+                'techniques': [
+                    {
+                        'id': 'T1110',
+                        'name': 'Brute Force',
+                        'description': 'Trying multiple passwords to gain access',
+                        'sub_techniques': [
+                            {'id': 'T1110.001', 'name': 'Password Guessing'},
+                            {'id': 'T1110.003', 'name': 'Password Spraying'}
+                        ],
+                        'indicators': ['auth_ports', 'repeated_attempts', 'failed_logins']
+                    },
+                    {
+                        'id': 'T1078',
+                        'name': 'Valid Accounts',
+                        'description': 'Attempting to use legitimate credentials',
+                        'indicators': ['ssh_attempts', 'rdp_attempts']
+                    }
+                ]
+            },
+            'LATERAL_MOVEMENT': {
+                'tactics': ['TA0008'],
+                'techniques': [
+                    {
+                        'id': 'T1021',
+                        'name': 'Remote Services',
+                        'description': 'Using remote services to move between systems',
+                        'sub_techniques': [
+                            {'id': 'T1021.001', 'name': 'Remote Desktop Protocol'},
+                            {'id': 'T1021.004', 'name': 'SSH'},
+                            {'id': 'T1021.002', 'name': 'SMB/Windows Admin Shares'}
+                        ],
+                        'indicators': ['multiple_internal_targets', 'escalating_access']
+                    },
+                    {
+                        'id': 'T1570',
+                        'name': 'Lateral Tool Transfer',
+                        'description': 'Transferring tools between systems',
+                        'indicators': ['file_transfers', 'tool_deployment']
+                    }
+                ]
+            },
+            'DATA_EXFILTRATION': {
+                'tactics': ['TA0010', 'TA0009'],
+                'techniques': [
+                    {
+                        'id': 'T1041',
+                        'name': 'Exfiltration Over C2 Channel',
+                        'description': 'Stealing data over command and control channel',
+                        'indicators': ['high_data_transfer', 'sustained_connections']
+                    },
+                    {
+                        'id': 'T1048',
+                        'name': 'Exfiltration Over Alternative Protocol',
+                        'description': 'Using uncommon protocols to exfiltrate',
+                        'indicators': ['unusual_protocols', 'encrypted_traffic']
+                    },
+                    {
+                        'id': 'T1020',
+                        'name': 'Automated Exfiltration',
+                        'description': 'Automated data collection and transfer',
+                        'indicators': ['regular_intervals', 'large_volumes']
+                    }
+                ]
+            },
+            'DDOS': {
+                'tactics': ['TA0040'],
+                'techniques': [
+                    {
+                        'id': 'T1498',
+                        'name': 'Network Denial of Service',
+                        'description': 'Overwhelming network resources',
+                        'sub_techniques': [
+                            {'id': 'T1498.001', 'name': 'Direct Network Flood'},
+                            {'id': 'T1498.002', 'name': 'Reflection Amplification'}
+                        ],
+                        'indicators': ['high_volume', 'single_target', 'short_duration']
+                    },
+                    {
+                        'id': 'T1499',
+                        'name': 'Endpoint Denial of Service',
+                        'description': 'Exhausting system resources',
+                        'indicators': ['resource_exhaustion', 'service_unavailability']
+                    }
+                ]
+            },
+            'UNKNOWN': {
+                'tactics': ['TA0043'],
+                'techniques': [
+                    {
+                        'id': 'T1595',
+                        'name': 'Active Scanning',
+                        'description': 'General scanning activity',
+                        'indicators': ['unclassified_behavior']
+                    }
+                ]
+            }
+        }
+    
+    async def map_chains(self, enriched_chains_file: str) -> Dict:
+        """
+        Map all attack chains to MITRE ATT&CK
+        
+        Args:
+            enriched_chains_file: Path to enriched chains JSON
+        
+        Returns:
+            Dictionary with output files and statistics
+        """
+        print(f"\n{'='*80}")
+        print("🎯 MITRE ATT&CK Framework Mapping")
+        print(f"{'='*80}")
+        
+        # Load chains
+        print(f"\n📥 Loading chains: {Path(enriched_chains_file).name}")
+        with open(enriched_chains_file, 'r') as f:
+            chains = json.load(f)
+        
+        print(f"   ✅ Loaded {len(chains)} chains")
+        
+        # Map each chain
+        print(f"\n🔍 Mapping chains to MITRE ATT&CK...")
+        
+        for i, chain in enumerate(chains, 1):
+            mitre_mapping = self._map_chain_to_mitre(chain)
+            chain['mitre_attack'] = mitre_mapping
+            
+            if i % 10 == 0:
+                print(f"   Progress: {i}/{len(chains)} chains mapped")
+        
+        print(f"   ✅ All chains mapped")
+        
+        # Print statistics
+        self._print_mitre_stats(chains)
+        
+        # Save results
+        return await self._save_results(chains)
+    
+    def _map_chain_to_mitre(self, chain: Dict) -> Dict:
+        """Map single attack chain to MITRE ATT&CK framework"""
+        attack_pattern = chain['attack_pattern']
+        
+        # Get technique mapping
+        mapping = self.technique_mappings.get(
+            attack_pattern,
+            self.technique_mappings['UNKNOWN']
+        )
+        
+        # Extract tactics
+        tactics = []
+        for tactic_id in mapping['tactics']:
+            tactics.append({
+                'id': tactic_id,
+                'name': self.tactics[tactic_id]['name'],
+                'description': self.tactics[tactic_id]['description']
+            })
+        
+        # Extract techniques with confidence scores
+        techniques = []
+        for tech in mapping['techniques']:
+            confidence = self._calculate_technique_confidence(chain, tech)
+            
+            technique_entry = {
+                'id': tech['id'],
+                'name': tech['name'],
+                'description': tech['description'],
+                'confidence': confidence,
+                'evidence': self._extract_evidence(chain, tech)
+            }
+            
+            # Add sub-techniques if present
+            if 'sub_techniques' in tech:
+                technique_entry['sub_techniques'] = tech['sub_techniques']
+            
+            techniques.append(technique_entry)
+        
+        # Build MITRE mapping
+        mitre_mapping = {
+            'chain_id': chain['chain_id'],
+            'attack_pattern': attack_pattern,
+            'tactics': tactics,
+            'techniques': techniques,
+            'kill_chain_phase': self._determine_kill_chain_phase(tactics),
+            'mitre_attack_url': self._generate_mitre_url(techniques[0]['id']) if techniques else None
+        }
+        
+        return mitre_mapping
+    
+    def _calculate_technique_confidence(self, chain: Dict, technique: Dict) -> float:
+        """Calculate confidence score for technique match"""
+        confidence = 0.5  # Base confidence
+        
+        indicators = technique.get('indicators', [])
+        
+        if 'auth_ports' in indicators:
+            auth_ports = [22, 3389, 21, 23]
+            if any(port in chain['common_ports'] for port in auth_ports):
+                confidence += 0.2
+        
+        if 'multiple_targets' in indicators or 'multiple_internal_targets' in indicators:
+            if chain['num_targets'] >= 5:
+                confidence += 0.15
+        
+        if 'high_data_transfer' in indicators:
+            if chain['total_bytes'] > 1000000:
+                confidence += 0.2
+        
+        if 'escalating_access' in indicators:
+            if chain['escalation_analysis']['is_escalating']:
+                confidence += 0.15
+        
+        if 'multiple_ports' in indicators:
+            if chain['unique_dst_ports'] >= 10:
+                confidence += 0.15
+        
+        # Anomaly ratio boost
+        if chain['anomaly_ratio'] > 0.5:
+            confidence += 0.1
+        
+        # Baseline deviation boost
+        if chain['baseline_deviation']['deviation_score'] > 0.5:
+            confidence += 0.1
+        
+        return min(1.0, confidence)
+    
+    def _extract_evidence(self, chain: Dict, technique: Dict) -> List[str]:
+        """Extract evidence supporting technique identification"""
+        evidence = []
+        
+        # Common evidence
+        evidence.append(f"Total events: {chain['total_events']:,}")
+        evidence.append(f"Anomaly ratio: {chain['anomaly_ratio']:.1%}")
+        evidence.append(f"Targets affected: {chain['num_targets']}")
+        
+        # Pattern-specific evidence
+        if chain['attack_pattern'] == 'BRUTE_FORCE':
+            evidence.append(f"Authentication attempts on ports: {list(chain['common_ports'].keys())[:3]}")
+            evidence.append(f"Repeated connection attempts detected")
+        
+        elif chain['attack_pattern'] == 'LATERAL_MOVEMENT':
+            evidence.append(f"Internal network traversal detected")
+            if chain['escalation_analysis']['is_escalating']:
+                evidence.append(f"Gradual escalation observed (rate: {chain['escalation_analysis']['escalation_rate']:.2f})")
+            evidence.append(f"Multiple internal targets: {chain['num_targets']}")
+        
+        elif chain['attack_pattern'] == 'DATA_EXFILTRATION':
+            evidence.append(f"Data transfer: {chain['total_bytes']:,} bytes")
+            evidence.append(f"Sustained connections over {chain['duration']} seconds")
+        
+        elif chain['attack_pattern'] == 'PORT_SCAN':
+            evidence.append(f"Ports scanned: {chain['unique_dst_ports']}")
+            evidence.append(f"Scan pattern detected across multiple services")
+        
+        elif chain['attack_pattern'] == 'DDOS':
+            evidence.append(f"High volume attack: {chain['total_events']:,} requests")
+            evidence.append(f"Single target overwhelmed")
+        
+        elif chain['attack_pattern'] == 'RECONNAISSANCE':
+            evidence.append(f"Network mapping activity detected")
+            evidence.append(f"Service enumeration across {chain['unique_dst_ports']} ports")
+        
+        # Baseline deviation
+        if chain['baseline_deviation']['deviation_score'] > 0.3:
+            evidence.append(f"Baseline deviation: {chain['baseline_deviation']['deviation_score']:.2f}")
+            
+            deviations = chain['baseline_deviation'].get('deviations', {})
+            if 'frequency' in deviations:
+                evidence.append(f"Abnormal frequency: {deviations['frequency']['ratio']:.1f}x baseline")
+            if 'target_diversity' in deviations:
+                evidence.append(f"Unusual target diversity pattern")
+        
+        return evidence
+    
+    def _determine_kill_chain_phase(self, tactics: List[Dict]) -> str:
+        """Determine Lockheed Martin Cyber Kill Chain phase"""
+        tactic_names = [t['name'] for t in tactics]
+        
+        if 'Reconnaissance' in tactic_names:
+            return 'Reconnaissance'
+        elif 'Initial Access' in tactic_names:
+            return 'Weaponization/Delivery'
+        elif 'Execution' in tactic_names or 'Persistence' in tactic_names:
+            return 'Exploitation/Installation'
+        elif 'Credential Access' in tactic_names or 'Privilege Escalation' in tactic_names:
+            return 'Installation/Command & Control'
+        elif 'Lateral Movement' in tactic_names or 'Discovery' in tactic_names:
+            return 'Command & Control'
+        elif 'Exfiltration' in tactic_names or 'Collection' in tactic_names:
+            return 'Actions on Objectives'
+        elif 'Impact' in tactic_names:
+            return 'Actions on Objectives'
+        else:
+            return 'Unknown'
+    
+    def _generate_mitre_url(self, technique_id: str) -> str:
+        """Generate MITRE ATT&CK URL for technique"""
+        return f"https://attack.mitre.org/techniques/{technique_id.replace('.', '/')}/"
+    
+    def _print_mitre_stats(self, chains: List[Dict]):
+        """Print MITRE ATT&CK mapping statistics"""
+        print(f"\n{'='*80}")
+        print("📊 MITRE ATT&CK MAPPING STATISTICS")
+        print(f"{'='*80}")
+        
+        # Tactic distribution
+        all_tactics = []
+        for chain in chains:
+            for tactic in chain['mitre_attack']['tactics']:
+                all_tactics.append(tactic['name'])
+        
+        tactic_counts = Counter(all_tactics)
+        
+        print(f"\n🎯 Tactic Distribution:")
+        for tactic, count in tactic_counts.most_common():
+            pct = (count / len(chains)) * 100
+            bar = '█' * int(pct / 5)
+            print(f"   {tactic:<25}: {count:3d} chains ({pct:5.1f}%) {bar}")
+        
+        # Technique distribution
+        all_techniques = []
+        for chain in chains:
+            for tech in chain['mitre_attack']['techniques']:
+                all_techniques.append(f"{tech['id']}: {tech['name']}")
+        
+        technique_counts = Counter(all_techniques)
+        
+        print(f"\n🔧 Top 10 Techniques Detected:")
+        for technique, count in technique_counts.most_common(10):
+            print(f"   {technique:<50}: {count:3d} chains")
+        
+        # Kill chain phases
+        kill_chain_phases = [chain['mitre_attack']['kill_chain_phase'] for chain in chains]
+        phase_counts = Counter(kill_chain_phases)
+        
+        print(f"\n⚔️  Cyber Kill Chain Phase Distribution:")
+        for phase, count in phase_counts.most_common():
+            pct = (count / len(chains)) * 100
+            print(f"   {phase:<35}: {count:3d} chains ({pct:5.1f}%)")
+        
+        # High confidence matches
+        high_confidence = []
+        for chain in chains:
+            for tech in chain['mitre_attack']['techniques']:
+                if tech['confidence'] >= 0.8:
+                    high_confidence.append(chain['chain_id'])
+        
+        print(f"\n✅ High Confidence Matches (≥80%):")
+        print(f"   {len(set(high_confidence))} chains with high-confidence technique matches")
+        
+        print(f"\n{'='*80}")
+    
+    async def _save_results(self, chains: List[Dict]) -> Dict:
+        """Save MITRE-mapped results"""
+        timestamp = file_manager.generate_timestamp()
+        
+        # Save MITRE-mapped chains
+        mitre_file = file_manager.get_output_path(
+            f"enriched_chains_{timestamp}_ground_truth_mitre.json"
+        )
+        
+        with open(mitre_file, 'w') as f:
+            json.dump(chains, f, indent=2)
+        
+        print(f"\n✅ MITRE-mapped chains saved: {mitre_file.name}")
+        
+        # Generate markdown report
+        report_file = await self._generate_mitre_report(chains, timestamp)
+        
+        # Register files
+        file_manager.register_file("mitre_chains", str(mitre_file))
+        file_manager.register_file("mitre_report", str(report_file))
+        
+        # Calculate statistics
+        tactic_counts = Counter()
+        technique_counts = Counter()
+        
+        for chain in chains:
+            for tactic in chain['mitre_attack']['tactics']:
+                tactic_counts[tactic['name']] += 1
+            for tech in chain['mitre_attack']['techniques']:
+                technique_counts[tech['id']] += 1
+        
+        return {
+            "output_files": {
+                "mitre_chains": str(mitre_file),
+                "mitre_report": str(report_file)
+            },
+            "statistics": {
+                "total_chains": len(chains),
+                "unique_tactics": len(tactic_counts),
+                "unique_techniques": len(technique_counts),
+                "most_common_tactic": tactic_counts.most_common(1)[0] if tactic_counts else None,
+                "most_common_technique": technique_counts.most_common(1)[0] if technique_counts else None
+            }
+        }
+    
+    async def _generate_mitre_report(self, chains: List[Dict], timestamp: str) -> Path:
+        """Generate MITRE ATT&CK mapping report"""
+        print(f"\n📄 Generating MITRE ATT&CK Report...")
+        
+        # Sort by severity
+        chains_sorted = sorted(chains, key=lambda x: x['severity'], reverse=True)
+        
+        report_file = file_manager.get_output_path(f"mitre_attack_report_{timestamp}.md")
+        
+        with open(report_file, 'w', encoding='utf-8') as f:
+            f.write("# 🎯 ForensIQ MITRE ATT&CK Mapping Report\n\n")
+            f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}\n\n")
+            f.write(f"**Total Attack Chains:** {len(chains)}\n\n")
+            
+            f.write("---\n\n")
+            
+            # Tactic overview
+            f.write("## 📊 MITRE ATT&CK Tactics Overview\n\n")
+            
+            all_tactics = []
+            for chain in chains:
+                for tactic in chain['mitre_attack']['tactics']:
+                    all_tactics.append(tactic['name'])
+            
+            tactic_counts = Counter(all_tactics)
+            
+            f.write("| Tactic | Chains | Percentage |\n")
+            f.write("|--------|--------|------------|\n")
+            for tactic, count in tactic_counts.most_common():
+                pct = (count / len(chains)) * 100
+                f.write(f"| {tactic} | {count} | {pct:.1f}% |\n")
+            
+            f.write("\n---\n\n")
+            
+            # Top 10 chains
+            f.write("## 🔥 Top 10 Attack Chains with MITRE Mapping\n\n")
+            
+            for i, chain in enumerate(chains_sorted[:10], 1):
+                mitre = chain['mitre_attack']
+                rep = chain['ip_reputation']
+                
+                f.write(f"### {i}. {chain['chain_id']} - {chain['attack_pattern']}\n\n")
+                
+                f.write(f"**Severity:** {chain['severity_level']} ({chain['severity']:.1f}/100)\n\n")
+                f.write(f"**Attacker:** `{rep['ip']}` ({rep.get('country_code', 'UNKNOWN')})\n\n")
+                
+                f.write(f"#### 🎯 MITRE ATT&CK Mapping\n\n")
+                
+                f.write(f"**Tactics:**\n")
+                for tactic in mitre['tactics']:
+                    f.write(f"- **{tactic['id']}**: {tactic['name']} - {tactic['description']}\n")
+                
+                f.write(f"\n**Techniques:**\n")
+                for tech in mitre['techniques']:
+                    conf_emoji = '🟢' if tech['confidence'] >= 0.8 else '🟡' if tech['confidence'] >= 0.6 else '🟠'
+                    tech_url = self._generate_mitre_url(tech['id'])
+                    f.write(f"- {conf_emoji} **[{tech['id']}]({tech_url})**: {tech['name']}\n")
+                    f.write(f"  - Confidence: {tech['confidence']:.0%}\n")
+                    f.write(f"  - {tech['description']}\n")
+                    
+                    if tech.get('sub_techniques'):
+                        f.write(f"  - Sub-techniques:\n")
+                        for sub in tech['sub_techniques']:
+                            f.write(f"    - {sub['id']}: {sub['name']}\n")
+                
+                f.write(f"\n**Kill Chain Phase:** {mitre['kill_chain_phase']}\n\n")
+                
+                f.write(f"**Evidence:**\n")
+                for evidence in mitre['techniques'][0]['evidence']:
+                    f.write(f"- {evidence}\n")
+                
+                f.write("\n---\n\n")
+            
+            f.write("\n## 🔗 References\n\n")
+            f.write("- [MITRE ATT&CK Framework](https://attack.mitre.org/)\n")
+            f.write("- [MITRE ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/)\n")
+            f.write("- [Lockheed Martin Cyber Kill Chain](https://www.lockheedmartin.com/en-us/capabilities/cyber/cyber-kill-chain.html)\n")
+        
+        print(f"✅ MITRE report saved: {report_file.name}")
+        return report_file
+
+
+# Singleton instance
+mitre_mapper = MITREAttackMapper()
+
+
+
+================================================================================
+FILE 16/17: app\services\story_generator.py
+================================================================================
+
+"""
+Attack Story Generation Service - Module 5
+Generates human-readable attack narratives
+"""
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
+
+from app.core.file_manager import file_manager
+
+
+class AttackStoryGenerator:
+    """
+    Generates human-readable attack narratives from technical data
+    Creates executive summaries and detailed incident timelines
+    """
+    
+    def __init__(self):
+        # Story templates for different attack patterns
+        self.story_templates = {
+            'LATERAL_MOVEMENT': {
+                'summary': 'The attacker established a foothold and systematically moved through the network',
+                'intro': 'gained initial access and began exploring the internal network infrastructure',
+                'progression': 'moved laterally across multiple systems, escalating privileges',
+                'impact': 'compromised internal systems and gained unauthorized access to sensitive areas'
+            },
+            'BRUTE_FORCE': {
+                'summary': 'The attacker attempted to gain unauthorized access through credential attacks',
+                'intro': 'launched a systematic credential attack against authentication services',
+                'progression': 'continued password guessing attempts across multiple accounts',
+                'impact': 'potentially compromised user credentials through repeated authentication attempts'
+            },
+            'DATA_EXFILTRATION': {
+                'summary': 'The attacker extracted sensitive data from the network',
+                'intro': 'established a covert data transfer channel',
+                'progression': 'systematically collected and transmitted data to external systems',
+                'impact': 'successfully exfiltrated sensitive information from the network'
+            },
+            'PORT_SCAN': {
+                'summary': 'The attacker conducted reconnaissance to map network services',
+                'intro': 'began scanning the network to identify available services and vulnerabilities',
+                'progression': 'systematically probed multiple ports and services',
+                'impact': 'gathered intelligence about network topology and potential attack vectors'
+            },
+            'RECONNAISSANCE': {
+                'summary': 'The attacker performed extensive network reconnaissance',
+                'intro': 'initiated comprehensive network mapping activities',
+                'progression': 'gathered information about network structure, services, and vulnerabilities',
+                'impact': 'collected detailed intelligence for potential future attacks'
+            },
+            'DDOS': {
+                'summary': 'The attacker launched a denial of service attack',
+                'intro': 'initiated a high-volume attack to overwhelm target systems',
+                'progression': 'sustained the attack with massive traffic floods',
+                'impact': 'disrupted services and caused potential downtime'
+            },
+            'UNKNOWN': {
+                'summary': 'The attacker exhibited suspicious behavior',
+                'intro': 'initiated unusual network activity',
+                'progression': 'continued anomalous behavior patterns',
+                'impact': 'posed potential security risks requiring investigation'
+            }
+        }
+        
+        # Recommendation templates
+        self.recommendation_templates = {
+            'LATERAL_MOVEMENT': [
+                'Implement network segmentation to limit lateral movement',
+                'Deploy endpoint detection and response (EDR) solutions',
+                'Enforce least privilege access controls',
+                'Monitor for unusual internal network traversal patterns',
+                'Implement multi-factor authentication for all internal services'
+            ],
+            'BRUTE_FORCE': [
+                'Implement account lockout policies after failed login attempts',
+                'Deploy multi-factor authentication on all authentication endpoints',
+                'Use rate limiting on authentication services',
+                'Monitor for repeated failed login attempts',
+                'Implement strong password policies and password managers'
+            ],
+            'DATA_EXFILTRATION': [
+                'Implement data loss prevention (DLP) solutions',
+                'Monitor outbound traffic for unusual data transfers',
+                'Encrypt sensitive data at rest and in transit',
+                'Implement egress filtering and traffic inspection',
+                'Deploy network behavior analytics to detect exfiltration patterns'
+            ],
+            'PORT_SCAN': [
+                'Deploy intrusion detection/prevention systems (IDS/IPS)',
+                'Implement network access controls and firewalls',
+                'Disable unnecessary services and close unused ports',
+                'Monitor for scanning activities in network logs',
+                'Use network segmentation to limit exposure'
+            ],
+            'RECONNAISSANCE': [
+                'Implement honeypots to detect reconnaissance activities',
+                'Deploy threat intelligence feeds to identify known attackers',
+                'Monitor for unusual service enumeration activities',
+                'Harden external-facing services',
+                'Implement rate limiting on public services'
+            ],
+            'DDOS': [
+                'Deploy DDoS mitigation services and rate limiting',
+                'Implement traffic filtering and blackholing',
+                'Use content delivery networks (CDN) for distributed protection',
+                'Monitor traffic patterns for volumetric attacks',
+                'Establish incident response procedures for DDoS events'
+            ],
+            'UNKNOWN': [
+                'Conduct thorough investigation of anomalous activities',
+                'Implement comprehensive logging and monitoring',
+                'Deploy security information and event management (SIEM)',
+                'Establish baseline behavior patterns for detection',
+                'Engage threat hunting teams for proactive detection'
+            ]
+        }
+    
+    async def generate_stories(self, mitre_chains_file: str) -> Dict:
+        """
+        Generate attack stories for all chains
+        
+        Args:
+            mitre_chains_file: Path to MITRE-mapped chains JSON
+        
+        Returns:
+            Dictionary with output files and statistics
+        """
+        print(f"\n{'='*80}")
+        print("📖 ForensIQ Attack Story Generator")
+        print("    Creating Human-Readable Incident Narratives")
+        print(f"{'='*80}")
+        
+        # Load chains
+        print(f"\n📥 Loading MITRE-mapped chains: {Path(mitre_chains_file).name}")
+        with open(mitre_chains_file, 'r') as f:
+            chains = json.load(f)
+        
+        print(f"   ✅ Loaded {len(chains)} chains")
+        
+        # Generate stories
+        print(f"\n✍️  Generating attack narratives...")
+        
+        for i, chain in enumerate(chains, 1):
+            story = self._generate_chain_story(chain)
+            chain['attack_story'] = story
+            
+            if i % 10 == 0:
+                print(f"   Progress: {i}/{len(chains)} stories generated")
+        
+        print(f"   ✅ All stories generated")
+        
+        # Print statistics
+        self._print_statistics(chains)
+        
+        # Save results
+        return await self._save_results(chains)
+    
+    def _generate_chain_story(self, chain: Dict) -> Dict:
+        """Generate comprehensive attack story for a chain"""
+        attack_pattern = chain['attack_pattern']
+        template = self.story_templates.get(
+            attack_pattern,
+            self.story_templates['UNKNOWN']
+        )
+        
+        # Executive summary
+        executive_summary = self._create_executive_summary(chain, template)
+        
+        # Detailed narrative
+        detailed_narrative = self._create_detailed_narrative(chain, template)
+        
+        # Timeline
+        timeline = self._create_timeline(chain)
+        
+        # Technical details
+        technical_details = self._extract_technical_details(chain)
+        
+        # Recommendations
+        recommendations = self._get_recommendations(chain)
+        
+        # Risk assessment
+        risk_assessment = self._assess_risk(chain)
+        
+        story = {
+            'chain_id': chain['chain_id'],
+            'title': self._generate_title(chain),
+            'executive_summary': executive_summary,
+            'detailed_narrative': detailed_narrative,
+            'timeline': timeline,
+            'technical_details': technical_details,
+            'mitre_context': self._format_mitre_context(chain),
+            'risk_assessment': risk_assessment,
+            'recommendations': recommendations,
+            'generated_at': datetime.now().isoformat()
+        }
+        
+        return story
+    
+    def _generate_title(self, chain: Dict) -> str:
+        """Generate story title"""
+        pattern = chain['attack_pattern'].replace('_', ' ').title()
+        severity = chain['severity_level']
+        attacker = chain['attacker_ip']
+        
+        return f"{severity} Severity {pattern} Attack from {attacker}"
+    
+    def _create_executive_summary(self, chain: Dict, template: Dict) -> str:
+        """Create executive summary"""
+        attacker_ip = chain['attacker_ip']
+        severity = chain['severity_level']
+        pattern = chain['attack_pattern'].replace('_', ' ').lower()
+        num_targets = chain['num_targets']
+        duration = self._format_duration(chain['duration'])
+        reputation = chain['ip_reputation']
+        
+        summary = f"""
+{template['summary']}.
+
+**Threat Actor:** {attacker_ip} (Reputation Score: {reputation['abuse_score']}/100, Severity: {reputation['severity']})
+
+**Attack Classification:** {pattern.title()}
+
+**Scope:** This {severity.lower()}-severity incident targeted {num_targets} system(s) over a period of {duration}. 
+The attack exhibited characteristics consistent with {template['summary'].lower()}.
+
+**MITRE ATT&CK Mapping:** The attack aligned with {len(chain['mitre_attack']['tactics'])} MITRE ATT&CK tactic(s), 
+specifically {', '.join([t['name'] for t in chain['mitre_attack']['tactics']])}.
+
+**Ground Truth Analysis:** Based on historical data, this IP address has been associated with 
+{reputation.get('malicious_records', 0)} malicious activities out of {reputation.get('total_records', 0)} total events, 
+representing a {reputation.get('malicious_ratio', 0):.1%} malicious activity rate.
+""".strip()
+        
+        return summary
+    
+    def _create_detailed_narrative(self, chain: Dict, template: Dict) -> str:
+        """Create detailed attack narrative"""
+        attacker_ip = chain['attacker_ip']
+        start_time = datetime.fromtimestamp(chain['start_time']).strftime('%Y-%m-%d %H:%M:%S')
+        end_time = datetime.fromtimestamp(chain['end_time']).strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Introduction
+        narrative = f"On {start_time}, the threat actor at IP address {attacker_ip} {template['intro']}. "
+        
+        # Context from escalation analysis
+        if chain['escalation_analysis']['is_escalating']:
+            narrative += f"The attack demonstrated a gradual escalation pattern, with anomalous activity " \
+                        f"increasing from {chain['escalation_analysis']['start_ratio']:.1%} to " \
+                        f"{chain['escalation_analysis']['end_ratio']:.1%} over the incident timeline. "
+        
+        # Baseline deviation
+        if chain['baseline_deviation']['has_baseline'] and chain['baseline_deviation']['deviation_score'] > 0.3:
+            narrative += f"This activity deviated significantly from established baseline behavior patterns, " \
+                        f"with a deviation score of {chain['baseline_deviation']['deviation_score']:.2f}. "
+            
+            deviations = chain['baseline_deviation'].get('deviations', {})
+            if 'frequency' in deviations:
+                narrative += f"Event frequency was {deviations['frequency']['ratio']:.1f}x normal baseline levels. "
+            if 'target_diversity' in deviations:
+                narrative += f"Target diversity patterns were also abnormal. "
+        
+        # Progression
+        narrative += f"\n\nThroughout the attack, the adversary {template['progression']}. "
+        narrative += f"The incident involved {chain['total_events']} total network events, of which " \
+                    f"{chain['anomaly_events']} ({chain['anomaly_ratio']:.1%}) were classified as anomalous. "
+        
+        # Targets
+        if chain['num_targets'] > 1:
+            narrative += f"The attack targeted {chain['num_targets']} distinct systems: " \
+                        f"{', '.join(chain['target_ips'][:5])}" \
+                        f"{'...' if len(chain['target_ips']) > 5 else ''}. "
+        else:
+            narrative += f"The attack focused on a single target: {chain['target_ips'][0]}. "
+        
+        # Network characteristics
+        narrative += f"\n\nNetwork analysis revealed activity across {chain['unique_dst_ports']} unique ports, " \
+                    f"with the most common being {', '.join([str(p) for p in list(chain['common_ports'].keys())[:3]])}. "
+        
+        protocols = ', '.join(chain['protocols'].keys())
+        narrative += f"The attack primarily utilized {protocols} protocol(s). "
+        
+        # Data volume
+        data_mb = chain['total_bytes'] / (1024 * 1024)
+        narrative += f"A total of {data_mb:.2f} MB of data was transferred during the incident. "
+        
+        # Conclusion
+        narrative += f"\n\nThe attack concluded at {end_time}. {template['impact'].capitalize()}."
+        
+        return narrative
+    
+    def _create_timeline(self, chain: Dict) -> List[Dict]:
+        """Create incident timeline"""
+        timeline = []
+        
+        # Start event
+        timeline.append({
+            'timestamp': datetime.fromtimestamp(chain['start_time']).isoformat(),
+            'event': 'Attack Initiated',
+            'description': f"First anomalous activity detected from {chain['attacker_ip']}",
+            'severity': 'WARNING'
+        })
+        
+        # Key events from anomaly details
+        if chain.get('anomaly_events_detail'):
+            # Sample some key anomaly events
+            sample_events = sorted(
+                chain['anomaly_events_detail'],
+                key=lambda x: x.get('anomaly_score', 0),
+                reverse=True
+            )[:5]
+            
+            for event in sample_events:
+                timeline.append({
+                    'timestamp': datetime.fromtimestamp(event['stime']).isoformat(),
+                    'event': f"High-severity event to {event['dstip']}:{event['dsport']}",
+                    'description': f"Protocol: {event['proto']}, State: {event['state']}, " \
+                                  f"Anomaly Score: {event.get('anomaly_score', 0):.2f}",
+                    'severity': 'CRITICAL' if event.get('anomaly_score', 0) > 0.9 else 'HIGH'
+                })
+        
+        # Escalation points
+        if chain['escalation_analysis']['is_escalating']:
+            mid_time = (chain['start_time'] + chain['end_time']) / 2
+            timeline.append({
+                'timestamp': datetime.fromtimestamp(mid_time).isoformat(),
+                'event': 'Escalation Pattern Detected',
+                'description': f"Attack intensity increasing (rate: {chain['escalation_analysis']['escalation_rate']:.2f})",
+                'severity': 'HIGH'
+            })
+        
+        # End event
+        timeline.append({
+            'timestamp': datetime.fromtimestamp(chain['end_time']).isoformat(),
+            'event': 'Attack Concluded',
+            'description': f"Last detected activity from {chain['attacker_ip']}",
+            'severity': 'INFO'
+        })
+        
+        return sorted(timeline, key=lambda x: x['timestamp'])
+    
+    def _extract_technical_details(self, chain: Dict) -> Dict:
+        """Extract technical details"""
+        return {
+            'chain_id': chain['chain_id'],
+            'attacker_ip': chain['attacker_ip'],
+            'target_ips': chain['target_ips'],
+            'attack_pattern': chain['attack_pattern'],
+            'duration_seconds': chain['duration'],
+            'total_events': chain['total_events'],
+            'anomaly_events': chain['anomaly_events'],
+            'anomaly_ratio': round(chain['anomaly_ratio'], 3),
+            'severity_score': chain['severity'],
+            'severity_level': chain['severity_level'],
+            'protocols_used': list(chain['protocols'].keys()),
+            'states_observed': list(chain['states'].keys()),
+            'unique_dst_ports': chain['unique_dst_ports'],
+            'common_ports': chain['common_ports'],
+            'total_bytes_transferred': chain['total_bytes'],
+            'avg_anomaly_score': round(chain['avg_anomaly_score'], 4),
+            'max_anomaly_score': round(chain['max_anomaly_score'], 4),
+            'ngram_rarity': chain['ngram_rarity'],
+            'baseline_deviation_score': chain['baseline_deviation']['deviation_score'],
+            'is_escalating': chain['escalation_analysis']['is_escalating']
+        }
+    
+    def _format_mitre_context(self, chain: Dict) -> Dict:
+        """Format MITRE ATT&CK context"""
+        mitre = chain['mitre_attack']
+        
+        return {
+            'tactics': [
+                f"{t['id']}: {t['name']}" for t in mitre['tactics']
+            ],
+            'techniques': [
+                {
+                    'id': t['id'],
+                    'name': t['name'],
+                    'confidence': f"{t['confidence']:.0%}",
+                    'url': self._generate_mitre_url(t['id'])
+                }
+                for t in mitre['techniques']
+            ],
+            'kill_chain_phase': mitre['kill_chain_phase']
+        }
+    
+    def _assess_risk(self, chain: Dict) -> Dict:
+        """Assess overall risk"""
+        severity_score = chain['severity']
+        reputation_score = chain['ip_reputation']['abuse_score']
+        
+        # Combined risk score
+        risk_score = (severity_score * 0.6) + (reputation_score * 0.4)
+        
+        if risk_score >= 75:
+            risk_level = 'CRITICAL'
+            priority = 'IMMEDIATE'
+        elif risk_score >= 50:
+            risk_level = 'HIGH'
+            priority = 'URGENT'
+        elif risk_score >= 25:
+            risk_level = 'MEDIUM'
+            priority = 'ELEVATED'
+        else:
+            risk_level = 'LOW'
+            priority = 'ROUTINE'
+        
+        return {
+            'risk_score': round(risk_score, 2),
+            'risk_level': risk_level,
+            'response_priority': priority,
+            'contributing_factors': [
+                f"Attack severity: {chain['severity_level']} ({severity_score}/100)",
+                f"IP reputation: {chain['ip_reputation']['severity']} ({reputation_score}/100)",
+                f"Anomaly ratio: {chain['anomaly_ratio']:.1%}",
+                f"Targets affected: {chain['num_targets']}",
+                f"Baseline deviation: {chain['baseline_deviation']['deviation_score']:.2f}"
+            ]
+        }
+    
+    def _get_recommendations(self, chain: Dict) -> List[str]:
+        """Get security recommendations"""
+        attack_pattern = chain['attack_pattern']
+        recommendations = self.recommendation_templates.get(
+            attack_pattern,
+            self.recommendation_templates['UNKNOWN']
+        ).copy()
+        
+        # Add IP-specific recommendation
+        if chain['ip_reputation']['abuse_score'] > 70:
+            recommendations.insert(0, f"Immediately block IP address {chain['attacker_ip']} at network perimeter")
+        
+        # Add escalation-specific recommendation
+        if chain['escalation_analysis']['is_escalating']:
+            recommendations.append("Implement automated alerting for gradual escalation patterns")
+        
+        # Add deviation-specific recommendation
+        if chain['baseline_deviation']['deviation_score'] > 0.5:
+            recommendations.append("Review and update baseline behavior profiles for affected systems")
+        
+        return recommendations
+    
+    def _format_duration(self, seconds: int) -> str:
+        """Format duration in human-readable form"""
+        if seconds < 60:
+            return f"{seconds} seconds"
+        elif seconds < 3600:
+            minutes = seconds // 60
+            return f"{minutes} minute{'s' if minutes != 1 else ''}"
+        else:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            return f"{hours} hour{'s' if hours != 1 else ''} and {minutes} minute{'s' if minutes != 1 else ''}"
+    
+    def _generate_mitre_url(self, technique_id: str) -> str:
+        """Generate MITRE ATT&CK URL"""
+        return f"https://attack.mitre.org/techniques/{technique_id.replace('.', '/')}/"
+    
+    def _print_statistics(self, chains: List[Dict]):
+        """Print story generation statistics"""
+        print(f"\n{'='*80}")
+        print("📊 ATTACK STORY GENERATION STATISTICS")
+        print(f"{'='*80}")
+        
+        from collections import Counter
+        
+        # Risk distribution
+        risk_levels = [chain['attack_story']['risk_assessment']['risk_level'] for chain in chains]
+        risk_counts = Counter(risk_levels)
+        
+        print(f"\n⚠️  Risk Level Distribution:")
+        for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+            count = risk_counts.get(level, 0)
+            pct = (count / len(chains) * 100) if chains else 0
+            bar = '█' * int(pct / 2)
+            print(f"   {level:8s}: {count:3d} incidents ({pct:5.1f}%) {bar}")
+        
+        # Average story lengths
+        total_chars = sum(len(chain['attack_story']['detailed_narrative']) for chain in chains)
+        avg_length = total_chars // len(chains) if chains else 0
+        
+        print(f"\n📝 Story Statistics:")
+        print(f"   Total stories generated: {len(chains)}")
+        print(f"   Average narrative length: {avg_length} characters")
+        print(f"   Average timeline events: {sum(len(chain['attack_story']['timeline']) for chain in chains) / len(chains):.1f}")
+        
+        # Top attack patterns
+        patterns = [chain['attack_pattern'] for chain in chains]
+        pattern_counts = Counter(patterns)
+        
+        print(f"\n🎯 Attack Pattern Distribution:")
+        for pattern, count in pattern_counts.most_common(5):
+            print(f"   {pattern:<20}: {count:3d} incidents")
+        
+        print(f"\n{'='*80}")
+    
+    async def _save_results(self, chains: List[Dict]) -> Dict:
+        """Save story results"""
+        timestamp = file_manager.generate_timestamp()
+        
+        # Save stories with chains
+        stories_file = file_manager.get_output_path(
+            f"enriched_chains_{timestamp}_ground_truth_stories.json"
+        )
+        
+        with open(stories_file, 'w') as f:
+            json.dump(chains, f, indent=2)
+        
+        print(f"\n✅ Attack stories saved: {stories_file.name}")
+        
+        # Generate markdown report
+        report_file = await self._generate_stories_report(chains, timestamp)
+        
+        # Register files
+        file_manager.register_file("attack_stories", str(stories_file))
+        file_manager.register_file("stories_report", str(report_file))
+        
+        # Calculate statistics
+        from collections import Counter
+        risk_levels = [chain['attack_story']['risk_assessment']['risk_level'] for chain in chains]
+        risk_counts = Counter(risk_levels)
+        
+        return {
+            "output_files": {
+                "attack_stories": str(stories_file),
+                "stories_report": str(report_file)
+            },
+            "statistics": {
+                "total_stories": len(chains),
+                "risk_distribution": dict(risk_counts),
+                "critical_incidents": risk_counts.get('CRITICAL', 0),
+                "high_risk_incidents": risk_counts.get('HIGH', 0)
+            }
+        }
+    
+    async def _generate_stories_report(self, chains: List[Dict], timestamp: str) -> Path:
+        """Generate attack stories report"""
+        print(f"\n📄 Generating Attack Stories Report...")
+        
+        # Sort by risk score
+        chains_sorted = sorted(
+            chains,
+            key=lambda x: x['attack_story']['risk_assessment']['risk_score'],
+            reverse=True
+        )
+        
+        report_file = file_manager.get_output_path(f"attack_stories_report_{timestamp}.md")
+        
+        with open(report_file, 'w', encoding='utf-8') as f:
+            f.write("# 📖 ForensIQ Attack Story Report\n\n")
+            f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S IST')}\n\n")
+            f.write(f"**Total Incidents:** {len(chains)}\n\n")
+            
+            f.write("---\n\n")
+            
+            # Executive Overview
+            f.write("## 📊 Executive Overview\n\n")
+            
+            from collections import Counter
+            risk_levels = [chain['attack_story']['risk_assessment']['risk_level'] for chain in chains]
+            risk_counts = Counter(risk_levels)
+            
+            f.write("| Risk Level | Count | Percentage |\n")
+            f.write("|------------|-------|------------|\n")
+            for level in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+                count = risk_counts.get(level, 0)
+                pct = (count / len(chains) * 100) if chains else 0
+                f.write(f"| {level} | {count} | {pct:.1f}% |\n")
+            
+            f.write("\n---\n\n")
+            
+            # Top 10 incidents
+            f.write("## 🔥 Top 10 Critical Incidents\n\n")
+            
+            for i, chain in enumerate(chains_sorted[:10], 1):
+                story = chain['attack_story']
+                
+                f.write(f"### {i}. {story['title']}\n\n")
+                
+                # Risk badge
+                risk_level = story['risk_assessment']['risk_level']
+                risk_emoji = {'CRITICAL': '🔴', 'HIGH': '🟠', 'MEDIUM': '🟡', 'LOW': '🟢'}
+                f.write(f"{risk_emoji.get(risk_level, '⚪')} **Risk: {risk_level}** ")
+                f.write(f"(Score: {story['risk_assessment']['risk_score']:.1f}/100)\n\n")
+                
+                # Executive summary
+                f.write(f"#### Executive Summary\n\n")
+                f.write(f"{story['executive_summary']}\n\n")
+                
+                # Timeline
+                f.write(f"#### Timeline\n\n")
+                for event in story['timeline']:
+                    event_time = datetime.fromisoformat(event['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+                    f.write(f"- **{event_time}** - {event['event']}: {event['description']}\n")
+                
+                f.write(f"\n")
+                
+                # MITRE context
+                f.write(f"#### MITRE ATT&CK Context\n\n")
+                f.write(f"**Tactics:** {', '.join(story['mitre_context']['tactics'])}\n\n")
+                f.write(f"**Techniques:**\n")
+                for tech in story['mitre_context']['techniques']:
+                    f.write(f"- [{tech['id']}: {tech['name']}]({tech['url']}) (Confidence: {tech['confidence']})\n")
+                
+                f.write(f"\n**Kill Chain Phase:** {story['mitre_context']['kill_chain_phase']}\n\n")
+                
+                # Recommendations
+                f.write(f"#### Recommended Actions\n\n")
+                for j, rec in enumerate(story['recommendations'], 1):
+                    f.write(f"{j}. {rec}\n")
+                
+                f.write("\n---\n\n")
+            
+            f.write("\n## 📚 Additional Resources\n\n")
+            f.write("- [MITRE ATT&CK Framework](https://attack.mitre.org/)\n")
+            f.write("- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)\n")
+            f.write("- [SANS Incident Response Guide](https://www.sans.org/white-papers/)\n")
+        
+        print(f"✅ Stories report saved: {report_file.name}")
+        return report_file
+
+
+# Singleton instance
+story_generator = AttackStoryGenerator()
+
+
+
+================================================================================
+FILE 17/17: templates\index.html
+================================================================================
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ForensIQ // THREAT_DETECTION_SYSTEM</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=VT323&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              mono: ['"VT323"', "monospace"],
+            },
+            colors: {
+              bg: "#020202",
+              panel: "#09090b",
+              border: "#3f3f46",
+              neon: {
+                green: "#00ff41",
+                red: "#ff003c",
+                blue: "#00f3ff",
+                yellow: "#ffee00",
+              },
+              dim: "rgba(0, 255, 65, 0.1)",
+            },
+            animation: {
+              "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              glitch: "glitch 1s linear infinite",
+              scanline: "scanline 8s linear infinite",
+            },
+            keyframes: {
+              scanline: {
+                "0%": { transform: "translateY(-100%)" },
+                "100%": { transform: "translateY(100%)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* --- CORE TERMINAL STYLES --- */
+      body {
+        background-color: #000;
+        color: #00ff41;
+        font-family: "VT323", monospace;
+        font-size: 1.2rem;
+        overflow-x: hidden;
+        cursor: text;
+      }
+
+      /* CRT Scanline Overlay */
+      .scanlines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0),
+          rgba(255, 255, 255, 0) 50%,
+          rgba(0, 0, 0, 0.2) 50%,
+          rgba(0, 0, 0, 0.2)
+        );
+        background-size: 100% 4px;
+        pointer-events: none;
+        z-index: 50;
+      }
+
+      /* CRT Glow & Flicker */
+      .crt-flicker {
+        animation: flicker 0.15s infinite;
+        pointer-events: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+          circle,
+          rgba(18, 16, 16, 0) 50%,
+          rgba(0, 0, 0, 0.25) 100%
+        );
+        z-index: 49;
+      }
+
+      @keyframes flicker {
+        0% { opacity: 0.97; }
+        50% { opacity: 1; }
+        100% { opacity: 0.98; }
+      }
+
+      /* Text Glow */
+      .text-glow {
+        text-shadow:
+          0 0 5px rgba(0, 255, 65, 0.5),
+          0 0 10px rgba(0, 255, 65, 0.3);
+      }
+      .text-glow-red {
+        text-shadow:
+          0 0 5px rgba(255, 0, 60, 0.5),
+          0 0 10px rgba(255, 0, 60, 0.3);
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+        background: #000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #00ff41;
+        border: 2px solid #000;
+      }
+
+      /* Panel Borders */
+      .cyber-panel {
+        background: rgba(5, 5, 5, 0.9);
+        border: 1px solid #333;
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.05);
+        position: relative;
+        overflow: hidden;
+      }
+      .cyber-panel::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 10px;
+        height: 10px;
+        border-top: 2px solid #00ff41;
+        border-left: 2px solid #00ff41;
+      }
+      .cyber-panel::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 10px;
+        height: 10px;
+        border-bottom: 2px solid #00ff41;
+        border-right: 2px solid #00ff41;
+      }
+
+      /* Button Styles */
+      .btn-retro {
+        background: transparent;
+        border: 1px solid #00ff41;
+        color: #00ff41;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        box-shadow: 0 0 5px rgba(0, 255, 65, 0.2);
+      }
+      .btn-retro:hover:not(:disabled) {
+        background: #00ff41;
+        color: #000;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.8);
+        cursor: pointer;
+      }
+      .btn-retro:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Progress Bar Segmented */
+      .progress-segment {
+        display: inline-block;
+        width: 10px;
+        height: 100%;
+        margin-right: 2px;
+        background-color: #003300;
+      }
+      .progress-segment.active {
+        background-color: #00ff41;
+        box-shadow: 0 0 5px #00ff41;
+      }
+
+      /* Glitch Effect Helper */
+      .glitch-text {
+        position: relative;
+      }
+
+      /* Severity Badges */
+      .badge-critical {
+        background: rgba(220, 38, 38, 0.2);
+        color: #fca5a5;
+        border: 1px solid #dc2626;
+      }
+      .badge-high {
+        background: rgba(234, 88, 12, 0.2);
+        color: #fdba74;
+        border: 1px solid #ea580c;
+      }
+      .badge-medium {
+        background: rgba(202, 138, 4, 0.2);
+        color: #fde047;
+        border: 1px solid #ca8a04;
+      }
+      .badge-low {
+        background: rgba(22, 163, 74, 0.2);
+        color: #86efac;
+        border: 1px solid #16a34a;
+      }
+    </style>
+  </head>
+
+  <body
+    class="min-h-screen font-mono p-4 md:p-8 selection:bg-neon-green selection:text-black"
+  >
+    <div id="sound-engine" style="display: none"></div>
+
+    <div class="scanlines"></div>
+    <div class="crt-flicker"></div>
+
+    <div class="max-w-7xl mx-auto space-y-8 relative z-10">
+      <!-- HEADER -->
+      <header
+        class="flex items-end justify-between border-b border-neon-green pb-4"
+      >
+        <div>
+          <h1
+            class="text-5xl font-bold uppercase tracking-widest text-glow"
+            data-text="🛡️ ForensIQ"
+          >
+            🛡️ ForensIQ
+          </h1>
+          <div class="flex items-center space-x-2 mt-2 text-neon-blue">
+            <span class="animate-pulse" id="status-indicator">●</span>
+            <span class="text-sm tracking-wider" id="system-status"
+              >INITIALIZING_CONNECTION...</span
+            >
+          </div>
+        </div>
+        <div class="text-right hidden md:block">
+          <div class="text-xs text-gray-500">OPERATOR_ID</div>
+          <div class="text-neon-yellow">ADMIN_ROOT</div>
+          <div class="text-xs text-gray-500 mt-1">SESSION_TIME</div>
+          <div class="text-neon-green" id="clock">00:00:00</div>
+        </div>
+      </header>
+
+      <!-- MAIN GRID -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- LEFT COLUMN (2/3) -->
+        <div class="space-y-8 lg:col-span-2">
+          <!-- PIPELINE EXECUTION PANEL -->
+          <section class="cyber-panel p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-2xl text-neon-yellow text-glow">
+                > Full_Pipeline_Execution
+              </h2>
+              <span
+                class="text-xs border border-neon-yellow px-2 py-0.5 text-neon-yellow"
+                >V.1.0.0</span
+              >
+            </div>
+
+            <div class="space-y-6">
+             <!-- Configuration -->
+<div class="relative group">
+  <label class="block text-sm text-gray-400 mb-2">
+    UPLOAD_TARGET_FILE:
+  </label>
+  <div class="relative">
+    <input
+      type="file"
+      id="file-input"
+      accept=".csv"
+      class="hidden"
+      onchange="handleFileSelect(this)"
+    />
+    <label
+      for="file-input"
+      class="block w-full text-sm text-neon-green bg-black border border-gray-700 hover:border-neon-green focus:outline-none px-4 py-3 cursor-pointer transition-colors"
+    >
+      <span class="flex items-center justify-between">
+        <span id="file-name" class="truncate">
+          📁 Click to select CSV file...
+        </span>
+        <span class="text-gray-500 text-xs ml-2">[BROWSE]</span>
+      </span>
+    </label>
+  </div>
+  <div id="file-info" class="mt-2 text-xs text-gray-500 hidden">
+    <div>File: <span id="selected-file-name" class="text-white"></span></div>
+    <div>Size: <span id="selected-file-size" class="text-white"></span></div>
+  </div>
+</div>
+
+              </div>
+
+              <div class="relative group">
+                <label class="block text-sm text-gray-400 mb-2"
+                  >DETECTION_THRESHOLD:
+                  <span class="text-white" id="threshold-value">0.50</span></label
+                >
+                <input
+                  type="range"
+                  id="threshold-slider"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="0.5"
+                  class="w-full h-2 bg-gray-900 border border-gray-700 appearance-none cursor-pointer"
+                  oninput="document.getElementById('threshold-value').innerText = parseFloat(this.value).toFixed(2)"
+                />
+              </div>
+
+              <!-- Execute Button -->
+              <div class="flex items-center justify-end">
+                <button
+                  id="execute-btn"
+                  class="btn-retro px-8 py-3 font-bold text-lg flex items-center gap-2"
+                  onclick="executePipeline()"
+                >
+                  <span>[ EXECUTE_FULL_PIPELINE ]</span>
+                </button>
+              </div>
+
+              <!-- Pipeline Progress -->
+              <div id="pipeline-progress" class="space-y-4 hidden">
+                <div class="border-t border-gray-700 pt-4">
+                  <h3 class="text-neon-blue mb-4">PIPELINE_STATUS:</h3>
+                  
+                  <!-- Module 1 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module1-label" class="text-gray-400">Module 1: Anomaly Detection</span>
+                      <span id="module1-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module1-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 2 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module2-label" class="text-gray-400">Module 2: Correlation Engine</span>
+                      <span id="module2-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module2-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 3 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module3-label" class="text-gray-400">Module 3: IP Enrichment</span>
+                      <span id="module3-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module3-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 4 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module4-label" class="text-gray-400">Module 4: MITRE ATT&CK Mapping</span>
+                      <span id="module4-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module4-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 5 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module5-label" class="text-gray-400">Module 5: Story Generation</span>
+                      <span id="module5-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module5-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Total Time -->
+                  <div class="border-t border-gray-700 pt-2 mt-4">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-400">TOTAL_EXECUTION_TIME:</span>
+                      <span id="total-time" class="text-neon-yellow">0.0s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Results Summary -->
+              <div id="results-summary" class="hidden border-l-2 border-neon-green pl-4 bg-dim p-4">
+                <div class="text-neon-green font-bold text-lg">>> PIPELINE_COMPLETE</div>
+                <div class="text-sm text-gray-300 mt-2 space-y-1" id="summary-content">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ATTACK CHAINS TABLE -->
+          <section class="cyber-panel p-6">
+            <h2 class="text-2xl text-neon-red text-glow mb-6">
+              > Detected_Attack_Chains
+            </h2>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr
+                    class="border-b border-gray-700 text-gray-500 uppercase text-sm tracking-wider"
+                  >
+                    <th class="p-3">CHAIN_ID</th>
+                    <th class="p-3">SEVERITY</th>
+                    <th class="p-3">ATTACKER_IP</th>
+                    <th class="p-3">PATTERN</th>
+                    <th class="p-3 text-right">EVENTS</th>
+                    <th class="p-3">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="chains-table" class="font-mono text-sm">
+                  <tr>
+                    <td colspan="6" class="p-4 text-center text-gray-500">
+                      No attack chains detected. Execute pipeline to populate.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- RIGHT COLUMN (1/3) -->
+        <div class="space-y-8">
+          <!-- STATISTICS PANEL -->
+          <section class="cyber-panel p-6">
+            <h2
+              class="text-xl text-neon-blue mb-6 border-b border-gray-800 pb-2"
+            >
+              > System_Statistics
+            </h2>
+
+            <div class="space-y-4">
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Total Events:</span>
+                <span id="stat-events" class="text-white font-bold">0</span>
+              </div>
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Anomalies:</span>
+                <span id="stat-anomalies" class="text-neon-red font-bold animate-pulse">0</span>
+              </div>
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Attack Chains:</span>
+                <span id="stat-chains" class="text-neon-yellow font-bold">0</span>
+              </div>
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Critical Incidents:</span>
+                <span id="stat-critical" class="text-neon-red font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400 text-sm">Anomaly Rate:</span>
+                <span id="stat-rate" class="text-neon-green font-bold">0.0%</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- TERMINAL OUTPUT -->
+          <section class="cyber-panel p-6 flex flex-col h-96">
+            <h2 class="text-xl text-neon-green mb-2">> System_Console</h2>
+            <div
+              class="flex-1 bg-black border border-gray-800 p-4 font-mono text-sm overflow-y-auto text-gray-300 leading-relaxed"
+              id="terminal-output"
+            >
+              <span class="text-neon-blue">forensiq@terminal:~$</span>
+              System initialized. Awaiting commands...<br />
+              <span class="animate-pulse">_</span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ============================================
+      // CONFIGURATION
+      // ============================================
+      const API_BASE_URL = "http://localhost:8001";
+      let pipelineRunning = false;
+
+      // ============================================
+      // CLOCK
+      // ============================================
+      function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString("en-GB", { hour12: false });
+        document.getElementById("clock").innerText = timeString;
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // ============================================
+      // SOUND ENGINE
+      // ============================================
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      function playTone(freq, type, duration) {
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(
+          0.00001,
+          audioCtx.currentTime + duration,
+        );
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }
+
+      function playClickSound() {
+        playTone(800, "square", 0.1);
+      }
+      function playEnterSound() {
+        playTone(600, "sawtooth", 0.3);
+      }
+      function playTypingSound() {
+        playTone(1200, "sine", 0.05);
+      }
+      function playErrorSound() {
+        playTone(200, "sawtooth", 0.5);
+      }
+
+      // ============================================
+      // TERMINAL LOGGER
+      // ============================================
+      function logToTerminal(message, color = "gray-300") {
+        const terminal = document.getElementById("terminal-output");
+        const timestamp = new Date().toLocaleTimeString("en-GB", { hour12: false });
+        terminal.innerHTML += `<span class="text-gray-600">[${timestamp}]</span> <span class="text-${color}">${message}</span><br>`;
+        terminal.scrollTop = terminal.scrollHeight;
+        playTypingSound();
+      }
+
+      // ============================================
+      // API HEALTH CHECK
+      // ============================================
+      async function checkAPIHealth() {
+        try {
+          const response = await fetch(`${API_BASE_URL}/health`);
+          const data = await response.json();
+          
+          if (data.status === "healthy") {
+            document.getElementById("system-status").innerText = 
+              "SYSTEM_ONLINE // SECURE_CONNECTION_ESTABLISHED";
+            document.getElementById("status-indicator").className = "animate-pulse text-neon-green";
+            logToTerminal("✓ API connection established", "neon-green");
+          } else {
+            throw new Error("API unhealthy");
+          }
+        } catch (error) {
+          document.getElementById("system-status").innerText = 
+            "ERROR // CONNECTION_FAILED";
+          document.getElementById("status-indicator").className = "animate-pulse text-neon-red";
+          logToTerminal("✗ Failed to connect to API backend", "neon-red");
+          playErrorSound();
+        }
+      }
+
+      // Check health on load
+      checkAPIHealth();
+
+      // ============================================
+      // EXECUTE FULL PIPELINE
+      // ============================================
+      async function executePipeline() {
+  if (pipelineRunning) return;
+  
+  // Check if file is selected
+  if (!selectedFile) {
+    logToTerminal("✗ Error: Please select a CSV file first", "neon-red");
+    playErrorSound();
+    return;
+  }
+  
+  pipelineRunning = true;
+  const executeBtn = document.getElementById("execute-btn");
+  executeBtn.disabled = true;
+  executeBtn.querySelector("span").innerText = "[ EXECUTING... ]";
+
+  const threshold = parseFloat(document.getElementById("threshold-slider").value);
+
+  // Show progress section
+  document.getElementById("pipeline-progress").classList.remove("hidden");
+  document.getElementById("results-summary").classList.add("hidden");
+
+  logToTerminal("==========================================", "neon-blue");
+  logToTerminal("INITIATING FULL PIPELINE EXECUTION", "neon-yellow");
+  logToTerminal(`INPUT: ${selectedFile.name} | THRESHOLD: ${threshold}`, "white");
+  logToTerminal("==========================================", "neon-blue");
+
+  playEnterSound();
+
+  try {
+    const startTime = Date.now();
+    
+    // Create FormData to upload file
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('threshold', threshold);
+
+    logToTerminal("Uploading file to API...", "white");
+    
+    const response = await fetch(`${API_BASE_URL}/api/v1/run-full-pipeline`, {
+      method: "POST",
+      body: formData  // Send as FormData instead of JSON
+    });
+
+    logToTerminal(`Response status: ${response.status}`, "white");
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API Error Response:", errorText);
+      logToTerminal(`API returned error: ${response.status}`, "neon-red");
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const responseText = await response.text();
+    console.log("Raw response:", responseText);
+    logToTerminal("Received response from API", "neon-green");
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log("Parsed data:", data);
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      logToTerminal("Error parsing API response", "neon-red");
+      throw new Error(`Invalid JSON response: ${parseError.message}`);
+    }
+
+    if (data.status === "error") {
+      console.error("Pipeline error:", data);
+      logToTerminal(`Pipeline error: ${data.message}`, "neon-red");
+      throw new Error(data.message);
+    }
+
+    // Simulate progressive updates
+    await simulateModuleProgress(data);
+
+    // Update UI with results
+    if (data && data.module_outputs) {
+      updateStatistics(data);
+      loadAttackChains(data);
+      showResultsSummary(data);
+    } else {
+      logToTerminal("Warning: No module_outputs in response", "neon-yellow");
+      console.warn("Response structure:", data);
+    }
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+    document.getElementById("total-time").innerText = `${totalTime}s`;
+
+    logToTerminal("==========================================", "neon-green");
+    logToTerminal("✓ PIPELINE EXECUTION COMPLETE", "neon-green");
+    logToTerminal(`Total time: ${totalTime}s`, "neon-yellow");
+    logToTerminal("==========================================", "neon-green");
+
+    playEnterSound();
+
+  } catch (error) {
+    logToTerminal("✗ PIPELINE EXECUTION FAILED", "neon-red");
+    logToTerminal(`Error: ${error.message}`, "neon-red");
+    console.error("Full error object:", error);
+    playErrorSound();
+  } finally {
+    pipelineRunning = false;
+    executeBtn.disabled = false;
+    executeBtn.querySelector("span").innerText = "[ EXECUTE_FULL_PIPELINE ]";
+  }
+}
+
+
+      // ============================================
+      // SIMULATE MODULE PROGRESS
+      // ============================================
+      async function simulateModuleProgress(data) {
+        const modules = [
+          { id: 1, name: "Anomaly Detection", duration: 2000 },
+          { id: 2, name: "Correlation Engine", duration: 1500 },
+          { id: 3, name: "IP Enrichment", duration: 1000 },
+          { id: 4, name: "MITRE ATT&CK Mapping", duration: 1200 },
+          { id: 5, name: "Story Generation", duration: 1800 }
+        ];
+
+        for (const module of modules) {
+          // Update status to "Running"
+          document.getElementById(`module${module.id}-label`).className = "text-white";
+          document.getElementById(`module${module.id}-status`).innerHTML = 
+            '<span class="text-neon-blue animate-pulse">Running...</span>';
+          
+          logToTerminal(`▶ Module ${module.id}: ${module.name} started`, "neon-blue");
+
+          // Animate progress bar
+          const progressDiv = document.getElementById(`module${module.id}-progress`);
+          for (let i = 0; i < 8; i++) {
+            progressDiv.innerHTML += '<div class="progress-segment active"></div>';
+            await sleep(module.duration / 8);
+          }
+
+          // Update status to "Complete"
+          document.getElementById(`module${module.id}-status`).innerHTML = 
+            '<span class="text-neon-green">✓ Complete</span>';
+          
+          logToTerminal(`✓ Module ${module.id}: ${module.name} completed`, "neon-green");
+          playClickSound();
+        }
+      }
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      // ============================================
+      // UPDATE STATISTICS
+      // ============================================
+      function updateStatistics(data) {
+        // Extract statistics from response
+        const stats = data.module_outputs?.module_1_anomaly_detection?.statistics || {};
+        const chainStats = data.module_outputs?.module_2_correlation?.statistics || {};
+        const storyStats = data.module_outputs?.module_5_story_generation?.statistics || {};
+
+        document.getElementById("stat-events").innerText = 
+          (stats.total_events || 0).toLocaleString();
+        document.getElementById("stat-anomalies").innerText = 
+          (stats.anomalies_detected || 0).toLocaleString();
+        document.getElementById("stat-chains").innerText = 
+          (chainStats.total_chains || 0).toLocaleString();
+        document.getElementById("stat-critical").innerText = 
+          (storyStats.critical_incidents || 0).toLocaleString();
+        
+        const rate = stats.anomaly_rate 
+          ? (stats.anomaly_rate * 100).toFixed(2) 
+          : "0.00";
+        document.getElementById("stat-rate").innerText = `${rate}%`;
+      }
+
+      // ============================================
+      // LOAD ATTACK CHAINS
+      // ============================================
+      function loadAttackChains(data) {
+        // Mock data - in production, you'd load from the JSON files
+        const mockChains = [
+          {
+            id: "CHAIN_0001",
+            severity: "CRITICAL",
+            attacker: "192.168.1.100",
+            pattern: "Lateral Movement + Data Exfiltration",
+            events: 147
+          },
+          {
+            id: "CHAIN_0003",
+            severity: "HIGH",
+            attacker: "10.0.0.45",
+            pattern: "Reconnaissance + Exploitation",
+            events: 82
+          },
+          {
+            id: "CHAIN_0007",
+            severity: "MEDIUM",
+            attacker: "172.16.0.23",
+            pattern: "Credential Access",
+            events: 34
+          },
+          {
+            id: "CHAIN_0012",
+            severity: "HIGH",
+            attacker: "192.168.2.88",
+            pattern: "Command & Control",
+            events: 56
+          }
+        ];
+
+        const tbody = document.getElementById("chains-table");
+        tbody.innerHTML = "";
+
+        mockChains.forEach(chain => {
+          const severityClass = `badge-${chain.severity.toLowerCase()}`;
+          const row = `
+            <tr class="border-b border-gray-800 hover:bg-neon-red hover:bg-opacity-10 transition-colors group cursor-pointer"
+                onclick="viewChainDetails('${chain.id}')">
+              <td class="p-3 text-neon-blue group-hover:text-white">${chain.id}</td>
+              <td class="p-3">
+                <span class="${severityClass} px-2 py-0.5 text-xs uppercase">${chain.severity}</span>
+              </td>
+              <td class="p-3 text-gray-300 group-hover:text-white font-mono text-xs">${chain.attacker}</td>
+              <td class="p-3 text-gray-300 group-hover:text-white">${chain.pattern}</td>
+              <td class="p-3 text-right text-neon-yellow">${chain.events}</td>
+              <td class="p-3">
+                <button class="text-neon-green hover:text-white text-xs" onclick="event.stopPropagation(); viewChainDetails('${chain.id}')">
+                  [VIEW]
+                </button>
+              </td>
+            </tr>
+          `;
+          tbody.innerHTML += row;
+        });
+
+        logToTerminal(`Loaded ${mockChains.length} attack chains`, "neon-yellow");
+      }
+
+      // ============================================
+      // VIEW CHAIN DETAILS
+      // ============================================
+      function viewChainDetails(chainId) {
+        playClickSound();
+        logToTerminal("==========================================", "neon-blue");
+        logToTerminal(`ANALYZING ${chainId}...`, "neon-yellow");
+        logToTerminal("Accessing MITRE ATT&CK Matrix...", "white");
+        logToTerminal("Correlated events: FOUND", "neon-green");
+        logToTerminal("Generating narrative...", "white");
+        logToTerminal("", "white");
+        logToTerminal("Subject utilized PowerShell to execute base64 encoded payload.", "white");
+        logToTerminal("Lateral movement detected via SMB (Port 445) to HOST-02.", "neon-red");
+        logToTerminal("Data staging identified in C:\\\\Temp directory.", "neon-red");
+        logToTerminal("MITRE Techniques: T1059.001, T1021.002, T1074.001", "neon-blue");
+        logToTerminal("==========================================", "neon-blue");
+      }
+
+      // ============================================
+      // SHOW RESULTS SUMMARY
+      // ============================================
+      function showResultsSummary(data) {
+        const summaryDiv = document.getElementById("results-summary");
+        const contentDiv = document.getElementById("summary-content");
+        
+        summaryDiv.classList.remove("hidden");
+        
+        contentDiv.innerHTML = `
+          <div>STATUS: <span class="text-white">${data.status}</span></div>
+          <div>MESSAGE: <span class="text-white">${data.message}</span></div>
+          <div class="mt-2 text-neon-blue">OUTPUT FILES GENERATED:</div>
+          <div class="ml-4 text-xs">
+            ${Object.keys(data.final_outputs || {}).map(key => 
+              `<div>• ${key}: ${data.final_outputs[key]}</div>`
+            ).join('')}
+          </div>
+        `;
+      }
+
+
+      // ============================================
+// FILE UPLOAD HANDLER
+// ============================================
+let selectedFile = null;
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  
+  if (!file) {
+    return;
+  }
+  
+  // Check if it's a CSV file
+  if (!file.name.endsWith('.csv')) {
+    logToTerminal("✗ Error: Please select a CSV file", "neon-red");
+    playErrorSound();
+    input.value = '';
+    return;
+  }
+  
+  selectedFile = file;
+  
+  // Update UI
+  document.getElementById('file-name').innerHTML = 
+    `📁 ${file.name}`;
+  
+  document.getElementById('selected-file-name').innerText = file.name;
+  document.getElementById('selected-file-size').innerText = 
+    formatFileSize(file.size);
+  
+  document.getElementById('file-info').classList.remove('hidden');
+  
+  // Log to terminal
+  logToTerminal(`✓ File selected: ${file.name} (${formatFileSize(file.size)})`, "neon-green");
+  playClickSound();
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+    </script>
+  </body>
+</html>
+
+

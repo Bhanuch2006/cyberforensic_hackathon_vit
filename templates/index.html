@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ForensIQ // THREAT_DETECTION_SYSTEM</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=VT323&display=swap"
+      rel="stylesheet"
+    />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              mono: ['"VT323"', "monospace"],
+            },
+            colors: {
+              bg: "#020202",
+              panel: "#09090b",
+              border: "#3f3f46",
+              neon: {
+                green: "#00ff41",
+                red: "#ff003c",
+                blue: "#00f3ff",
+                yellow: "#ffee00",
+              },
+              dim: "rgba(0, 255, 65, 0.1)",
+            },
+            animation: {
+              "pulse-fast": "pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              glitch: "glitch 1s linear infinite",
+              scanline: "scanline 8s linear infinite",
+            },
+            keyframes: {
+              scanline: {
+                "0%": { transform: "translateY(-100%)" },
+                "100%": { transform: "translateY(100%)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* --- CORE TERMINAL STYLES --- */
+      body {
+        background-color: #000;
+        color: #00ff41;
+        font-family: "VT323", monospace;
+        font-size: 1.2rem;
+        overflow-x: hidden;
+        cursor: text;
+      }
+
+      /* CRT Scanline Overlay */
+      .scanlines {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: linear-gradient(
+          to bottom,
+          rgba(255, 255, 255, 0),
+          rgba(255, 255, 255, 0) 50%,
+          rgba(0, 0, 0, 0.2) 50%,
+          rgba(0, 0, 0, 0.2)
+        );
+        background-size: 100% 4px;
+        pointer-events: none;
+        z-index: 50;
+      }
+
+      /* CRT Glow & Flicker */
+      .crt-flicker {
+        animation: flicker 0.15s infinite;
+        pointer-events: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+          circle,
+          rgba(18, 16, 16, 0) 50%,
+          rgba(0, 0, 0, 0.25) 100%
+        );
+        z-index: 49;
+      }
+
+      @keyframes flicker {
+        0% { opacity: 0.97; }
+        50% { opacity: 1; }
+        100% { opacity: 0.98; }
+      }
+
+      /* Text Glow */
+      .text-glow {
+        text-shadow:
+          0 0 5px rgba(0, 255, 65, 0.5),
+          0 0 10px rgba(0, 255, 65, 0.3);
+      }
+      .text-glow-red {
+        text-shadow:
+          0 0 5px rgba(255, 0, 60, 0.5),
+          0 0 10px rgba(255, 0, 60, 0.3);
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 10px;
+        background: #000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #00ff41;
+        border: 2px solid #000;
+      }
+
+      /* Panel Borders */
+      .cyber-panel {
+        background: rgba(5, 5, 5, 0.9);
+        border: 1px solid #333;
+        box-shadow: 0 0 10px rgba(0, 255, 65, 0.05);
+        position: relative;
+        overflow: hidden;
+      }
+      .cyber-panel::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 10px;
+        height: 10px;
+        border-top: 2px solid #00ff41;
+        border-left: 2px solid #00ff41;
+      }
+      .cyber-panel::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 10px;
+        height: 10px;
+        border-bottom: 2px solid #00ff41;
+        border-right: 2px solid #00ff41;
+      }
+
+      /* Button Styles */
+      .btn-retro {
+        background: transparent;
+        border: 1px solid #00ff41;
+        color: #00ff41;
+        text-transform: uppercase;
+        transition: all 0.2s;
+        box-shadow: 0 0 5px rgba(0, 255, 65, 0.2);
+      }
+      .btn-retro:hover:not(:disabled) {
+        background: #00ff41;
+        color: #000;
+        box-shadow: 0 0 15px rgba(0, 255, 65, 0.8);
+        cursor: pointer;
+      }
+      .btn-retro:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Progress Bar Segmented */
+      .progress-segment {
+        display: inline-block;
+        width: 10px;
+        height: 100%;
+        margin-right: 2px;
+        background-color: #003300;
+      }
+      .progress-segment.active {
+        background-color: #00ff41;
+        box-shadow: 0 0 5px #00ff41;
+      }
+
+      /* Glitch Effect Helper */
+      .glitch-text {
+        position: relative;
+      }
+
+      /* Severity Badges */
+      .badge-critical {
+        background: rgba(220, 38, 38, 0.2);
+        color: #fca5a5;
+        border: 1px solid #dc2626;
+      }
+      .badge-high {
+        background: rgba(234, 88, 12, 0.2);
+        color: #fdba74;
+        border: 1px solid #ea580c;
+      }
+      .badge-medium {
+        background: rgba(202, 138, 4, 0.2);
+        color: #fde047;
+        border: 1px solid #ca8a04;
+      }
+      .badge-low {
+        background: rgba(22, 163, 74, 0.2);
+        color: #86efac;
+        border: 1px solid #16a34a;
+      }
+
+      /* --- NAVBAR STYLES --- */
+      nav {
+        backdrop-filter: blur(10px);
+      }
+
+      .nav-link {
+        color: #6b7280;
+        border-bottom: 2px solid transparent;
+        position: relative;
+      }
+
+      .nav-link:hover {
+        color: #00ff41;
+        border-bottom-color: #00ff41;
+      }
+
+      .nav-link.active {
+        color: #00ff41;
+        border-bottom-color: #00ff41;
+        text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+      }
+
+      .nav-link::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background: #00ff41;
+        transition: width 0.3s ease;
+      }
+
+      .nav-link:hover::before {
+        width: 100%;
+      }
+
+      .nav-link-mobile {
+        color: #6b7280;
+        border-left: 3px solid transparent;
+        transition: all 0.2s;
+      }
+
+      .nav-link-mobile:hover {
+        color: #00ff41;
+        border-left-color: #00ff41;
+        background: rgba(0, 255, 65, 0.05);
+        padding-left: 1.5rem;
+      }
+
+      .nav-link-mobile.active {
+        color: #00ff41;
+        border-left-color: #00ff41;
+        background: rgba(0, 255, 65, 0.1);
+        text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen font-mono selection:bg-neon-green selection:text-black">
+    <div id="sound-engine" style="display: none"></div>
+
+    <!-- NAVIGATION BAR -->
+    <nav class="fixed top-0 left-0 w-full z-50 bg-black border-b border-neon-green shadow-lg" style="box-shadow: 0 2px 20px rgba(0, 255, 65, 0.2);">
+      <div class="max-w-7xl mx-auto px-4 md:px-8">
+        <div class="flex items-center justify-between h-16">
+          <!-- Logo/Brand -->
+          <div class="flex items-center space-x-3">
+            <span class="text-2xl">🛡️</span>
+            <span class="text-xl font-bold text-neon-green text-glow tracking-wider">
+              ForensIQ
+            </span>
+            <span class="hidden md:inline text-xs text-gray-600 ml-2">
+              v1.0.0
+            </span>
+          </div>
+<!-- Desktop Navigation -->
+<div class="hidden md:flex items-center space-x-1">
+  <a href="/" class="nav-link active px-6 py-2 text-sm uppercase tracking-widest transition-all duration-200">
+    <span class="flex items-center gap-2">
+      <span>🏠</span>
+      Dashboard
+    </span>
+  </a>
+  <a href="/log.html" class="nav-link px-6 py-2 text-sm uppercase tracking-widest transition-all duration-200">
+    <span class="flex items-center gap-2">
+      <span>📋</span>
+      Log Analysis
+    </span>
+  </a>
+  <a href="/narration.html" class="nav-link px-6 py-2 text-sm uppercase tracking-widest transition-all duration-200">
+    <span class="flex items-center gap-2">
+      <span>📝</span>
+      Narration
+    </span>
+  </a>
+  <a href="/attack-story.html" class="nav-link px-6 py-2 text-sm uppercase tracking-widest transition-all duration-200">
+    <span class="flex items-center gap-2">
+      <span>⚔️</span>
+      Attack Story
+    </span>
+  </a>
+</div>
+
+<!-- Mobile Menu Button -->
+<button id="mobile-menu-btn" class="md:hidden text-neon-green hover:text-white transition-colors">
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+  </svg>
+</button>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="hidden md:hidden pb-4">
+  <div class="flex flex-col space-y-2">
+    <a href="/" class="nav-link-mobile active px-4 py-2 text-sm uppercase tracking-wider">
+      🏠 Dashboard
+    </a>
+    <a href="/log.html" class="nav-link-mobile px-4 py-2 text-sm uppercase tracking-wider">
+      📋 Log Analysis
+    </a>
+    <a href="/narration.html" class="nav-link-mobile px-4 py-2 text-sm uppercase tracking-wider">
+      📝 Narration
+    </a>
+    <a href="/attack-story.html" class="nav-link-mobile px-4 py-2 text-sm uppercase tracking-wider">
+      ⚔️ Attack Story
+    </a>
+  </div>
+</div>
+
+          
+        
+    </nav>
+
+    <!-- Spacer for fixed navbar -->
+    <div class="h-16"></div>
+
+    <div class="scanlines"></div>
+    <div class="crt-flicker"></div>
+
+    <div class="max-w-7xl mx-auto space-y-8 relative z-10 p-4 md:p-8">
+      <!-- HEADER -->
+      <header class="flex items-end justify-between border-b border-neon-green pb-4">
+        <div>
+          <h1 class="text-5xl font-bold uppercase tracking-widest text-glow" data-text="🛡️ ForensIQ">
+            🛡️ ForensIQ
+          </h1>
+          <div class="flex items-center space-x-2 mt-2 text-neon-blue">
+            <span class="animate-pulse" id="status-indicator">●</span>
+            <span class="text-sm tracking-wider" id="system-status">INITIALIZING_CONNECTION...</span>
+          </div>
+        </div>
+
+        <div class="text-right hidden md:block">
+          <div class="text-xs text-gray-500">OPERATOR_ID</div>
+          <div class="text-neon-yellow">ADMIN_ROOT</div>
+          <div class="text-xs text-gray-500 mt-1">SESSION_TIME</div>
+          <div class="text-neon-green" id="clock">00:00:00</div>
+        </div>
+      </header>
+
+      <!-- MAIN GRID -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- LEFT COLUMN (2/3) -->
+        <div class="space-y-8 lg:col-span-2">
+          <!-- PIPELINE EXECUTION PANEL -->
+          <section class="cyber-panel p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h2 class="text-2xl text-neon-yellow text-glow">
+                > Full_Pipeline_Execution
+              </h2>
+              <span class="text-xs border border-neon-yellow px-2 py-0.5 text-neon-yellow">V.1.0.0</span>
+            </div>
+
+            <div class="space-y-6">
+              <!-- Configuration -->
+              <div class="relative group">
+                <label class="block text-sm text-gray-400 mb-2">
+                  UPLOAD_TARGET_FILE:
+                </label>
+                <div class="relative">
+                  <input
+                    type="file"
+                    id="file-input"
+                    accept=".csv"
+                    class="hidden"
+                    onchange="handleFileSelect(this)"
+                  />
+                  <label
+                    for="file-input"
+                    class="block w-full text-sm text-neon-green bg-black border border-gray-700 hover:border-neon-green focus:outline-none px-4 py-3 cursor-pointer transition-colors"
+                  >
+                    <span class="flex items-center justify-between">
+                      <span id="file-name" class="truncate">
+                        📁 Click to select CSV file...
+                      </span>
+                      <span class="text-gray-500 text-xs ml-2">[BROWSE]</span>
+                    </span>
+                  </label>
+                </div>
+                <div id="file-info" class="mt-2 text-xs text-gray-500 hidden">
+                  <div>File: <span id="selected-file-name" class="text-white"></span></div>
+                  <div>Size: <span id="selected-file-size" class="text-white"></span></div>
+                </div>
+              </div>
+
+              <div class="relative group">
+                <label class="block text-sm text-gray-400 mb-2 hidden">DETECTION_THRESHOLD:
+                  <span class="text-white" id="threshold-value" hidden>0.50</span>
+                </label>
+                <input
+                  type="range"
+                  id="threshold-slider"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value="0.185"
+                  class="w-full h-2 bg-gray-900 border border-gray-700 appearance-none cursor-pointer"
+                  oninput="document.getElementById('threshold-value').innerText = parseFloat(this.value).toFixed(2)"
+                />
+              </div>
+
+              <!-- Execute Button -->
+              <div class="flex items-center justify-end">
+                <button
+                  id="execute-btn"
+                  class="btn-retro px-8 py-3 font-bold text-lg flex items-center gap-2"
+                  onclick="executePipeline()"
+                >
+                  <span>[ EXECUTE_FULL_PIPELINE ]</span>
+                </button>
+              </div>
+
+              <!-- Pipeline Progress -->
+              <div id="pipeline-progress" class="space-y-4 hidden">
+                <div class="border-t border-gray-700 pt-4">
+                  <h3 class="text-neon-blue mb-4">PIPELINE_STATUS:</h3>
+
+                  <!-- Module 1 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module1-label" class="text-gray-400">Module 1: Anomaly Detection</span>
+                      <span id="module1-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module1-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 2 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module2-label" class="text-gray-400">Module 2: Correlation Engine</span>
+                      <span id="module2-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module2-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 3 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module3-label" class="text-gray-400">Module 3: IP Enrichment</span>
+                      <span id="module3-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module3-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 4 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module4-label" class="text-gray-400">Module 4: MITRE ATT&CK Mapping</span>
+                      <span id="module4-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module4-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Module 5 -->
+                  <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1 uppercase tracking-wider">
+                      <span id="module5-label" class="text-gray-400">Module 5: Story Generation</span>
+                      <span id="module5-status" class="text-gray-600">Pending</span>
+                    </div>
+                    <div class="h-4 bg-gray-900 border border-gray-700 flex p-0.5">
+                      <div id="module5-progress"></div>
+                    </div>
+                  </div>
+
+                  <!-- Total Time -->
+                  <div class="border-t border-gray-700 pt-2 mt-4">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-gray-400">TOTAL_EXECUTION_TIME:</span>
+                      <span id="total-time" class="text-neon-yellow">0.0s</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Results Summary -->
+              <div id="results-summary" class="hidden border-l-2 border-neon-green pl-4 bg-dim p-4">
+                <div class="text-neon-green font-bold text-lg">>> PIPELINE_COMPLETE</div>
+                <div class="text-sm text-gray-300 mt-2 space-y-1" id="summary-content">
+                  <!-- Populated dynamically -->
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ATTACK CHAINS TABLE -->
+          <section class="cyber-panel p-6">
+            <h2 class="text-2xl text-neon-red text-glow mb-6">
+              > Detected_Attack_Chains
+            </h2>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-gray-700 text-gray-500 uppercase text-sm tracking-wider">
+                    <th class="p-3">CHAIN_ID</th>
+                    <th class="p-3">SEVERITY</th>
+                    <th class="p-3">ATTACKER_IP</th>
+                    <th class="p-3">PATTERN</th>
+                    <th class="p-3 text-right">EVENTS</th>
+                    <th class="p-3">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="chains-table" class="font-mono text-sm">
+                  <tr>
+                    <td colspan="6" class="p-4 text-center text-gray-500">
+                      No attack chains detected. Execute pipeline to populate.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- RIGHT COLUMN (1/3) -->
+        <div class="space-y-8">
+          <!-- STATISTICS PANEL -->
+          <section class="cyber-panel p-6">
+            <h2 class="text-xl text-neon-blue mb-6 border-b border-gray-800 pb-2">
+              > System_Statistics
+            </h2>
+
+            <div class="space-y-4">
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Total Events:</span>
+                <span id="stat-events" class="text-white font-bold">0</span>
+              </div>
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Anomalies:</span>
+                <span id="stat-anomalies" class="text-neon-red font-bold animate-pulse">0</span>
+              </div>
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Attack Chains:</span>
+                <span id="stat-chains" class="text-neon-yellow font-bold">0</span>
+              </div>
+              <div class="flex justify-between border-b border-gray-800 pb-2">
+                <span class="text-gray-400 text-sm">Critical Incidents:</span>
+                <span id="stat-critical" class="text-neon-red font-bold">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400 text-sm">Anomaly Rate:</span>
+                <span id="stat-rate" class="text-neon-green font-bold">0.0%</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- TERMINAL OUTPUT -->
+          <section class="cyber-panel p-6 flex flex-col h-96">
+            <h2 class="text-xl text-neon-green mb-2">> System_Console</h2>
+            <div
+              class="flex-1 bg-black border border-gray-800 p-4 font-mono text-sm overflow-y-auto text-gray-300 leading-relaxed"
+              id="terminal-output"
+            >
+              <span class="text-neon-blue">forensiq@terminal:~$</span>
+              System initialized. Awaiting commands...<br />
+              <span class="animate-pulse">_</span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ============================================
+      // CONFIGURATION
+      // ============================================
+      const API_BASE_URL = "http://localhost:8001";
+      let pipelineRunning = false;
+
+      // ============================================
+      // CLOCK
+      // ============================================
+      function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString("en-GB", { hour12: false });
+        document.getElementById("clock").innerText = timeString;
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // ============================================
+      // SOUND ENGINE
+      // ============================================
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      function playTone(freq, type, duration) {
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(
+          0.00001,
+          audioCtx.currentTime + duration,
+        );
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }
+
+      function playClickSound() {
+        playTone(800, "square", 0.1);
+      }
+      function playEnterSound() {
+        playTone(600, "sawtooth", 0.3);
+      }
+      function playTypingSound() {
+        playTone(1200, "sine", 0.05);
+      }
+      function playErrorSound() {
+        playTone(200, "sawtooth", 0.5);
+      }
+
+      // ============================================
+      // TERMINAL LOGGER
+      // ============================================
+      function logToTerminal(message, color = "gray-300") {
+        const terminal = document.getElementById("terminal-output");
+        const timestamp = new Date().toLocaleTimeString("en-GB", { hour12: false });
+        terminal.innerHTML += `<span class="text-gray-600">[${timestamp}]</span> <span class="text-${color}">${message}</span><br>`;
+        terminal.scrollTop = terminal.scrollHeight;
+        playTypingSound();
+      }
+
+      // ============================================
+      // API HEALTH CHECK
+      // ============================================
+      async function checkAPIHealth() {
+        try {
+          const response = await fetch(`${API_BASE_URL}/health`);
+          const data = await response.json();
+
+          if (data.status === "healthy") {
+            document.getElementById("system-status").innerText = 
+              "SYSTEM_ONLINE // SECURE_CONNECTION_ESTABLISHED";
+            document.getElementById("status-indicator").className = "animate-pulse text-neon-green";
+            logToTerminal("✓ API connection established", "neon-green");
+          } else {
+            throw new Error("API unhealthy");
+          }
+        } catch (error) {
+          document.getElementById("system-status").innerText = 
+            "ERROR // CONNECTION_FAILED";
+          document.getElementById("status-indicator").className = "animate-pulse text-neon-red";
+          logToTerminal("✗ Failed to connect to API backend", "neon-red");
+          playErrorSound();
+        }
+      }
+
+      // Check health on load
+      checkAPIHealth();
+
+      // ============================================
+      // EXECUTE FULL PIPELINE
+      // ============================================
+      async function executePipeline() {
+        if (pipelineRunning) return;
+
+        // Check if file is selected
+        if (!selectedFile) {
+          logToTerminal("✗ Error: Please select a CSV file first", "neon-red");
+          playErrorSound();
+          return;
+        }
+
+        pipelineRunning = true;
+        const executeBtn = document.getElementById("execute-btn");
+        executeBtn.disabled = true;
+        executeBtn.querySelector("span").innerText = "[ EXECUTING... ]";
+
+        const threshold = parseFloat(document.getElementById("threshold-slider").value);
+
+        // Show progress section
+        document.getElementById("pipeline-progress").classList.remove("hidden");
+        document.getElementById("results-summary").classList.add("hidden");
+
+        logToTerminal("==========================================", "neon-blue");
+        logToTerminal("INITIATING FULL PIPELINE EXECUTION", "neon-yellow");
+        logToTerminal(`INPUT: ${selectedFile.name} | THRESHOLD: ${threshold}`, "white");
+        logToTerminal("==========================================", "neon-blue");
+
+        playEnterSound();
+
+        try {
+          const startTime = Date.now();
+
+          // Create FormData to upload file
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+          formData.append('threshold', threshold);
+
+          logToTerminal("Uploading file to API...", "white");
+
+          const response = await fetch(`${API_BASE_URL}/api/v1/run-full-pipeline`, {
+            method: "POST",
+            body: formData
+          });
+
+          logToTerminal(`Response status: ${response.status}`, "white");
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("API Error Response:", errorText);
+            logToTerminal(`API returned error: ${response.status}`, "neon-red");
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const responseText = await response.text();
+          console.log("Raw response:", responseText);
+          logToTerminal("Received response from API", "neon-green");
+
+          let data;
+          try {
+            data = JSON.parse(responseText);
+            console.log("Parsed data:", data);
+          } catch (parseError) {
+            console.error("JSON parse error:", parseError);
+            logToTerminal("Error parsing API response", "neon-red");
+            throw new Error(`Invalid JSON response: ${parseError.message}`);
+          }
+
+          if (data.status === "error") {
+            console.error("Pipeline error:", data);
+            logToTerminal(`Pipeline error: ${data.message}`, "neon-red");
+            throw new Error(data.message);
+          }
+
+          // Simulate progressive updates
+          await simulateModuleProgress(data);
+
+          // Update UI with results
+          if (data && data.module_outputs) {
+            updateStatistics(data);
+            loadAttackChains(data);
+            showResultsSummary(data);
+          } else {
+            logToTerminal("Warning: No module_outputs in response", "neon-yellow");
+            console.warn("Response structure:", data);
+          }
+
+          const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+          document.getElementById("total-time").innerText = `${totalTime}s`;
+
+          logToTerminal("==========================================", "neon-green");
+          logToTerminal("✓ PIPELINE EXECUTION COMPLETE", "neon-green");
+          logToTerminal(`Total time: ${totalTime}s`, "neon-yellow");
+          logToTerminal("==========================================", "neon-green");
+
+          playEnterSound();
+
+        } catch (error) {
+          logToTerminal("✗ PIPELINE EXECUTION FAILED", "neon-red");
+          logToTerminal(`Error: ${error.message}`, "neon-red");
+          console.error("Full error object:", error);
+          playErrorSound();
+        } finally {
+          pipelineRunning = false;
+          executeBtn.disabled = false;
+          executeBtn.querySelector("span").innerText = "[ EXECUTE_FULL_PIPELINE ]";
+        }
+      }
+
+      // ============================================
+      // SIMULATE MODULE PROGRESS
+      // ============================================
+      async function simulateModuleProgress(data) {
+        const modules = [
+          { id: 1, name: "Anomaly Detection", duration: 2000 },
+          { id: 2, name: "Correlation Engine", duration: 1500 },
+          { id: 3, name: "IP Enrichment", duration: 1000 },
+          { id: 4, name: "MITRE ATT&CK Mapping", duration: 1200 },
+          { id: 5, name: "Story Generation", duration: 1800 }
+        ];
+
+        for (const module of modules) {
+          // Update status to "Running"
+          document.getElementById(`module${module.id}-label`).className = "text-white";
+          document.getElementById(`module${module.id}-status`).innerHTML = 
+            '<span class="text-neon-blue animate-pulse">Running...</span>';
+
+          logToTerminal(`▶ Module ${module.id}: ${module.name} started`, "neon-blue");
+
+          // Animate progress bar
+          const progressDiv = document.getElementById(`module${module.id}-progress`);
+          for (let i = 0; i < 8; i++) {
+            progressDiv.innerHTML += '<div class="progress-segment active"></div>';
+            await sleep(module.duration / 8);
+          }
+
+          // Update status to "Complete"
+          document.getElementById(`module${module.id}-status`).innerHTML = 
+            '<span class="text-neon-green">✓ Complete</span>';
+
+          logToTerminal(`✓ Module ${module.id}: ${module.name} completed`, "neon-green");
+          playClickSound();
+        }
+      }
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      // ============================================
+      // UPDATE STATISTICS
+      // ============================================
+      function updateStatistics(data) {
+        // Extract statistics from response
+        const stats = data.module_outputs?.module_1_anomaly_detection?.statistics || {};
+        const chainStats = data.module_outputs?.module_2_correlation?.statistics || {};
+        const storyStats = data.module_outputs?.module_5_story_generation?.statistics || {};
+
+        document.getElementById("stat-events").innerText = 
+          (stats.total_events || 0).toLocaleString();
+        document.getElementById("stat-anomalies").innerText = 
+          (stats.anomalies_detected || 0).toLocaleString();
+        document.getElementById("stat-chains").innerText = 
+          (chainStats.total_chains || 0).toLocaleString();
+        document.getElementById("stat-critical").innerText = 
+          (storyStats.critical_incidents || 0).toLocaleString();
+
+        const rate = stats.anomaly_rate 
+          ? (stats.anomaly_rate * 100).toFixed(2) 
+          : "0.00";
+        document.getElementById("stat-rate").innerText = `${rate}%`;
+      }
+
+      // ============================================
+      // LOAD ATTACK CHAINS
+      // ============================================
+      function loadAttackChains(data) {
+        // Mock data - in production, you'd load from the JSON files
+        const mockChains = [
+          {
+            id: "CHAIN_0001",
+            severity: "CRITICAL",
+            attacker: "192.168.1.100",
+            pattern: "Lateral Movement + Data Exfiltration",
+            events: 147
+          },
+          {
+            id: "CHAIN_0003",
+            severity: "HIGH",
+            attacker: "10.0.0.45",
+            pattern: "Reconnaissance + Exploitation",
+            events: 82
+          },
+          {
+            id: "CHAIN_0007",
+            severity: "MEDIUM",
+            attacker: "172.16.0.23",
+            pattern: "Credential Access",
+            events: 34
+          },
+          {
+            id: "CHAIN_0012",
+            severity: "HIGH",
+            attacker: "192.168.2.88",
+            pattern: "Command & Control",
+            events: 56
+          }
+        ];
+
+        const tbody = document.getElementById("chains-table");
+        tbody.innerHTML = "";
+
+        mockChains.forEach(chain => {
+          const severityClass = `badge-${chain.severity.toLowerCase()}`;
+          const row = `
+            <tr class="border-b border-gray-800 hover:bg-neon-red hover:bg-opacity-10 transition-colors group cursor-pointer"
+                onclick="viewChainDetails('${chain.id}')">
+              <td class="p-3 text-neon-blue group-hover:text-white">${chain.id}</td>
+              <td class="p-3">
+                <span class="${severityClass} px-2 py-0.5 text-xs uppercase">${chain.severity}</span>
+              </td>
+              <td class="p-3 text-gray-300 group-hover:text-white font-mono text-xs">${chain.attacker}</td>
+              <td class="p-3 text-gray-300 group-hover:text-white">${chain.pattern}</td>
+              <td class="p-3 text-right text-neon-yellow">${chain.events}</td>
+              <td class="p-3">
+                <button class="text-neon-green hover:text-white text-xs" onclick="event.stopPropagation(); viewChainDetails('${chain.id}')">
+                  [VIEW]
+                </button>
+              </td>
+            </tr>
+          `;
+          tbody.innerHTML += row;
+        });
+
+        logToTerminal(`Loaded ${mockChains.length} attack chains`, "neon-yellow");
+      }
+
+      // ============================================
+      // VIEW CHAIN DETAILS
+      // ============================================
+      function viewChainDetails(chainId) {
+        playClickSound();
+        logToTerminal("==========================================", "neon-blue");
+        logToTerminal(`ANALYZING ${chainId}...`, "neon-yellow");
+        logToTerminal("Accessing MITRE ATT&CK Matrix...", "white");
+        logToTerminal("Correlated events: FOUND", "neon-green");
+        logToTerminal("Generating narrative...", "white");
+        logToTerminal("", "white");
+        logToTerminal("Subject utilized PowerShell to execute base64 encoded payload.", "white");
+        logToTerminal("Lateral movement detected via SMB (Port 445) to HOST-02.", "neon-red");
+        logToTerminal("Data staging identified in C:\\Temp directory.", "neon-red");
+        logToTerminal("MITRE Techniques: T1059.001, T1021.002, T1074.001", "neon-blue");
+        logToTerminal("==========================================", "neon-blue");
+      }
+
+      // ============================================
+      // SHOW RESULTS SUMMARY
+      // ============================================
+      function showResultsSummary(data) {
+        const summaryDiv = document.getElementById("results-summary");
+        const contentDiv = document.getElementById("summary-content");
+
+        summaryDiv.classList.remove("hidden");
+
+        contentDiv.innerHTML = `
+          <div>STATUS: <span class="text-white">${data.status}</span></div>
+          <div>MESSAGE: <span class="text-white">${data.message}</span></div>
+          <div class="mt-2 text-neon-blue">OUTPUT FILES GENERATED:</div>
+          <div class="ml-4 text-xs">
+            ${Object.keys(data.final_outputs || {}).map(key => 
+              `<div>• ${key}: ${data.final_outputs[key]}</div>`
+            ).join('')}
+          </div>
+        `;
+      }
+
+      // ============================================
+      // FILE UPLOAD HANDLER
+      // ============================================
+      let selectedFile = null;
+
+      function handleFileSelect(input) {
+        const file = input.files[0];
+
+        if (!file) {
+          return;
+        }
+
+        // Check if it's a CSV file
+        if (!file.name.endsWith('.csv')) {
+          logToTerminal("✗ Error: Please select a CSV file", "neon-red");
+          playErrorSound();
+          input.value = '';
+          return;
+        }
+
+        selectedFile = file;
+
+        // Update UI
+        document.getElementById('file-name').innerHTML = 
+          `📁 ${file.name}`;
+
+        document.getElementById('selected-file-name').innerText = file.name;
+        document.getElementById('selected-file-size').innerText = 
+          formatFileSize(file.size);
+
+        document.getElementById('file-info').classList.remove('hidden');
+
+        // Log to terminal
+        logToTerminal(`✓ File selected: ${file.name} (${formatFileSize(file.size)})`, "neon-green");
+        playClickSound();
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+      }
+
+      // ============================================
+      // MOBILE MENU TOGGLE
+      // ============================================
+      const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+      const mobileMenu = document.getElementById('mobile-menu');
+
+      mobileMenuBtn.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+        playClickSound();
+      });
+
+      // Highlight active page in navbar
+      const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+      document.querySelectorAll('.nav-link, .nav-link-mobile').forEach(link => {
+        const linkPage = link.getAttribute('href');
+        if (linkPage === currentPage || (currentPage === '' && linkPage === 'index.html')) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    </script>
+  </body>
+</html>

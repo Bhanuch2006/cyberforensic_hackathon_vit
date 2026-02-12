@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ForensIQ // ANALYST_CONSOLE</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+      /* --- VARIABLES & RESET --- */
+      :root {
+        --bg-color: #050505;
+        --panel-bg: #0a0a0a;
+        --border-color: #333;
+        --neon-green: #00ff41;
+        --neon-red: #ff003c;
+        --neon-blue: #00f3ff;
+        --neon-yellow: #ffee00;
+        --text-main: #e0e0e0;
+        --text-dim: #888;
+      }
+
+      * { box-sizing: border-box; outline: none; }
+
+      body {
+        margin: 0; padding: 20px;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: "Share Tech Mono", monospace;
+        display: flex; justify-content: center; align-items: center;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* --- SCANLINES & ATMOSPHERE --- */
+      .scanlines {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+        background-size: 100% 4px; pointer-events: none; z-index: 0;
+        opacity: 0.6;
+      }
+
+      /* --- MAIN CONTAINER --- */
+      .dashboard-container {
+        position: relative; z-index: 1;
+        background-color: var(--panel-bg);
+        border: 1px solid var(--border-color);
+        width: 1000px;
+        padding: 25px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.8);
+      }
+
+      /* Cyber Corners */
+      .dashboard-container::before { content: ""; position: absolute; top: -1px; left: -1px; width: 15px; height: 15px; border-top: 2px solid var(--neon-green); border-left: 2px solid var(--neon-green); }
+      .dashboard-container::after { content: ""; position: absolute; bottom: -1px; right: -1px; width: 15px; height: 15px; border-bottom: 2px solid var(--neon-green); border-right: 2px solid var(--neon-green); }
+
+      /* --- HEADER --- */
+      .header {
+        display: flex; justify-content: space-between; align-items: end;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 15px; margin-bottom: 20px;
+      }
+
+      .header h1 {
+        margin: 0; font-size: 2rem; color: var(--neon-green);
+        font-family: "VT323", monospace; text-transform: uppercase; letter-spacing: 2px;
+        text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+      }
+
+      .severity-badge {
+        background: rgba(255, 0, 60, 0.1);
+        border: 1px solid var(--neon-red);
+        color: var(--neon-red);
+        padding: 4px 12px;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        box-shadow: 0 0 10px rgba(255, 0, 60, 0.15);
+      }
+
+      /* --- NAVIGATION --- */
+      .navigation {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 20px; padding: 10px;
+        background: #000; border: 1px solid var(--border-color);
+      }
+
+      .nav-button {
+        background: transparent;
+        border: 1px solid var(--neon-green);
+        color: var(--neon-green);
+        padding: 8px 24px;
+        font-family: "VT323", monospace;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-transform: uppercase;
+      }
+
+      .nav-button:hover:not(:disabled) {
+        background: var(--neon-green); color: #000;
+        box-shadow: 0 0 15px var(--neon-green);
+      }
+
+      .nav-button:disabled {
+        border-color: #444; color: #555; cursor: not-allowed;
+      }
+
+      .chain-indicator {
+        font-family: "VT323", monospace; font-size: 1.4rem; color: var(--text-dim);
+      }
+      .chain-indicator .current { color: #fff; font-weight: bold; }
+
+      /* --- GRAPH AREA --- */
+      svg {
+        width: 100%; height: 400px;
+        background: radial-gradient(circle at center, #111 0%, #000 100%);
+        border: 1px solid var(--border-color);
+        margin-bottom: 10px;
+      }
+
+      .node-circle { stroke-width: 2px; transition: all 0.3s ease; cursor: pointer; }
+      .node-circle:hover { stroke-width: 4px; filter: drop-shadow(0 0 8px currentColor); }
+
+      .edge-path {
+        stroke: #333; stroke-width: 2; fill: none;
+        stroke-dasharray: 8; animation: dash 30s linear infinite;
+      }
+      @keyframes dash { to { stroke-dashoffset: -1000; } }
+
+      .mitre-badge { font-size: 10px; font-family: "Share Tech Mono", monospace; fill: var(--neon-green); font-weight: bold; }
+      .mitre-bg { fill: #000; stroke: var(--neon-green); stroke-width: 1; }
+
+      /* --- LEGEND (MOVED UP) --- */
+      .legend {
+        position: absolute;
+        top: 40px; right: 40px; /* Adjusted position */
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid var(--border-color);
+        padding: 12px;
+        font-size: 0.8rem;
+        z-index: 10;
+      }
+      .legend-item { display: flex; align-items: center; margin-bottom: 6px; color: var(--text-dim); }
+      .legend-item:last-child { margin-bottom: 0; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+
+      /* --- STATS GRID --- */
+      .stats-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+        background: var(--border-color); border: 1px solid var(--border-color);
+        margin-top: 20px;
+      }
+      .stat-item { background: var(--panel-bg); padding: 15px; text-align: center; }
+      
+      .stat-value {
+        font-size: 1.8rem; font-weight: 400; color: #fff; display: block;
+        font-family: "VT323", monospace;
+      }
+      .stat-label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; margin-top: 4px; }
+
+      /* --- EVIDENCE PANEL --- */
+      .evidence-panel {
+        margin-top: 20px;
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid var(--neon-green);
+        max-height: 0; overflow: hidden;
+        transition: max-height 0.3s ease, padding 0.3s ease;
+      }
+      .evidence-panel.active { max-height: 600px; padding: 20px; overflow-y: auto; }
+
+      .evidence-header {
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: 15px; padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+      }
+      .evidence-title { font-size: 1.2rem; color: var(--neon-green); font-family: "VT323", monospace; letter-spacing: 1px; }
+
+      .evidence-content { display: grid; gap: 8px; }
+
+      .evidence-item {
+        background: #0e0e0e; padding: 8px 12px;
+        border-left: 2px solid var(--border-color);
+        font-size: 0.85rem; color: var(--text-main);
+        display: flex; align-items: center;
+      }
+      .evidence-item strong { color: var(--text-dim); min-width: 120px; font-weight: normal; font-family: "JetBrains Mono", monospace; font-size: 0.75rem; }
+
+      .evidence-item.critical { border-left-color: var(--neon-red); }
+      .evidence-item.warning { border-left-color: var(--neon-yellow); }
+      .evidence-item.info { border-left-color: var(--neon-blue); }
+
+      .evidence-badge {
+        margin-left: auto; padding: 2px 6px; font-size: 0.7rem;
+        background: #222; color: #fff; border-radius: 2px;
+      }
+
+      /* --- TOOLTIP --- */
+      .node-tooltip {
+        position: absolute; background: rgba(5, 5, 5, 0.95);
+        border: 1px solid var(--border-color);
+        padding: 10px; font-size: 0.8rem; color: #fff;
+        pointer-events: none; opacity: 0; transition: opacity 0.2s;
+        z-index: 100; max-width: 250px;
+      }
+      .node-tooltip.show { opacity: 1; }
+      .tooltip-title { color: var(--neon-green); font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 4px; display: block; }
+      .tooltip-evidence { margin-top: 6px; font-size: 0.7rem; color: var(--neon-yellow); }
+
+      .click-hint { text-align: center; color: var(--text-dim); font-size: 0.8rem; margin-top: 8px; font-style: italic; }
+
+      /* Animation */
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+      .fade-in { animation: fadeIn 0.4s ease-out; }
+
+    </style>
+  </head>
+  <body>
+    
+    <div class="scanlines"></div>
+
+    <div class="dashboard-container fade-in">
+      
+      <div class="header">
+        <div>
+            <h1>ForensIQ Copilot</h1>
+            <div style="font-size: 0.9rem; color: var(--text-dim); margin-top: 5px;">
+                ATTACK CHAIN ANALYZER // V.2.0
+            </div>
+        </div>
+        <div style="text-align: right;">
+          <div class="severity-badge" id="severityBadge">SEVERITY: 74.1/100</div>
+          <div style="font-size: 0.85rem; color: var(--text-dim); margin-top: 5px;" id="chainId">Incident ID: CHAIN_1370</div>
+        </div>
+      </div>
+
+      <div class="navigation">
+        <button class="nav-button" id="prevBtn">&lt; PREV</button>
+        <div class="chain-indicator">
+          CHAIN <span class="current" id="currentChain">1</span> OF <span>10</span>
+        </div>
+        <button class="nav-button" id="nextBtn">NEXT &gt;</button>
+      </div>
+
+      <div style="position: relative;">
+          <svg viewBox="0 0 850 350" id="graphSvg">
+            <defs>
+              <marker id="arrow-head" markerWidth="10" markerHeight="7" refX="28" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+              </marker>
+            </defs>
+
+            <line x1="100" y1="175" x2="250" y2="175" class="edge-path" marker-end="url(#arrow-head)" />
+            <path d="M 250 175 C 280 175, 280 100, 380 100" class="edge-path" marker-end="url(#arrow-head)" style="animation-delay: 0.5s" />
+            <path d="M 380 100 C 480 100, 480 175, 510 175" class="edge-path" marker-end="url(#arrow-head)" style="animation-delay: 1s" />
+            <line x1="510" y1="175" x2="650" y2="175" class="edge-path" marker-end="url(#arrow-head)" style="animation-delay: 1.5s" />
+            <line x1="650" y1="175" x2="780" y2="175" class="edge-path" marker-end="url(#arrow-head)" style="animation-delay: 2s" />
+
+            <g class="glow-red" id="node1" data-node="attacker">
+              <circle cx="100" cy="175" r="30" fill="#050505" stroke="#ff003c" class="node-circle" />
+              <text x="100" y="180" text-anchor="middle" fill="#ff003c" font-size="20">🌐</text>
+            </g>
+            <text x="100" y="230" text-anchor="middle" fill="#ff003c" font-size="12" id="attackerIp">59.166.0.3</text>
+            <g transform="translate(75, 245)">
+              <rect width="50" height="16" class="mitre-bg" />
+              <text x="25" y="11" text-anchor="middle" class="mitre-badge">TA0001</text>
+            </g>
+
+            <g class="glow-orange" id="node2" data-node="host">
+              <circle cx="250" cy="175" r="30" fill="#050505" stroke="#ffee00" class="node-circle" />
+              <text x="250" y="180" text-anchor="middle" fill="#ffee00" font-size="20">💻</text>
+            </g>
+            <text x="250" y="230" text-anchor="middle" fill="#ffee00" font-size="12">TARGET</text>
+            <g transform="translate(180, 130)">
+              <rect width="50" height="20" class="mitre-bg" />
+              <text x="25" y="14" text-anchor="middle" class="mitre-badge">T1021</text>
+            </g>
+
+            <g class="glow-grey" id="node3" data-node="user">
+              <circle cx="380" cy="100" r="25" fill="#050505" stroke="#00f3ff" class="node-circle" />
+              <text x="380" y="105" text-anchor="middle" fill="#00f3ff" font-size="18">👤</text>
+            </g>
+            <text x="380" y="60" text-anchor="middle" fill="#00f3ff" font-size="12">User</text>
+            <g transform="translate(355, 120)">
+              <rect width="50" height="16" class="mitre-bg" />
+              <text x="25" y="11" text-anchor="middle" class="mitre-badge">T1078</text>
+            </g>
+
+            <g class="glow-orange" id="node4" data-node="service">
+              <circle cx="510" cy="175" r="30" fill="#050505" stroke="#ffee00" class="node-circle" />
+              <text x="510" y="180" text-anchor="middle" fill="#ffee00" font-size="20">⚙️</text>
+            </g>
+            <text x="510" y="230" text-anchor="middle" fill="#ffee00" font-size="12">Services</text>
+            <g transform="translate(485, 245)">
+              <rect width="50" height="16" class="mitre-bg" />
+              <text x="25" y="11" text-anchor="middle" class="mitre-badge">T1021</text>
+            </g>
+
+            <g class="glow-orange" id="node5" data-node="lateral">
+              <circle cx="650" cy="175" r="30" fill="#050505" stroke="#ffee00" class="node-circle" />
+              <text x="650" y="180" text-anchor="middle" fill="#ffee00" font-size="20">🖥️</text>
+            </g>
+            <text x="650" y="230" text-anchor="middle" fill="#ffee00" font-size="12" id="systemsCount">10 Systems</text>
+            <g transform="translate(625, 245)">
+              <rect width="50" height="16" class="mitre-bg" />
+              <text x="25" y="11" text-anchor="middle" class="mitre-badge">T1570</text>
+            </g>
+
+            <g class="glow-red" id="node6" data-node="persistence">
+              <circle cx="780" cy="175" r="30" fill="#050505" stroke="#ff003c" class="node-circle" />
+              <text x="780" y="180" text-anchor="middle" fill="#ff003c" font-size="20">📡</text>
+            </g>
+            <text x="780" y="230" text-anchor="middle" fill="#ff003c" font-size="12">Lateral</text>
+            <g transform="translate(755, 245)">
+              <rect width="50" height="16" class="mitre-bg" />
+              <text x="25" y="11" text-anchor="middle" class="mitre-badge">TA0008</text>
+            </g>
+          </svg>
+
+          <div class="legend">
+            <div class="legend-item">
+              <div class="dot" style="background: #ff003c;"></div>
+              <span>High Risk</span>
+            </div>
+            <div class="legend-item">
+              <div class="dot" style="background: #ffee00;"></div>
+              <span>Medium Risk</span>
+            </div>
+            <div class="legend-item">
+              <div class="dot" style="background: #00f3ff;"></div>
+              <span>Context</span>
+            </div>
+          </div>
+      </div>
+
+      <div class="click-hint">💡 Hover over nodes for details • Click nodes to view evidence • Use ← → keys to navigate chains</div>
+
+      <div class="node-tooltip" id="tooltip"></div>
+
+      <div class="evidence-panel" id="evidencePanel">
+        <div class="evidence-header">
+          <span style="font-size: 1.2rem; color:var(--neon-green)">></span>
+          <div class="evidence-title" id="evidenceTitle">Evidence Details</div>
+        </div>
+        <div class="evidence-content" id="evidenceContent"></div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-value" id="totalEvents">2,218</span>
+          <span class="stat-label">Total Events</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="anomalyRatio" style="color: var(--neon-red);">0.9%</span>
+          <span class="stat-label">Anomaly Ratio</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="targetsAffected">10</span>
+          <span class="stat-label">Targets Affected</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let currentChainIndex = 0;
+
+      // 1. ORIGINAL DATA (4 Items)
+      const chainData = [
+        {
+          id: "CHAIN_1370",
+          severity: 74.1,
+          attacker: "59.166.0.3",
+          location: "JP",
+          totalEvents: "2,218",
+          anomalyRatio: "0.9%",
+          targetsAffected: 10,
+          baselineDeviation: "0.80",
+          confidence: "50%",
+          nodeEvidence: {
+            attacker: {
+              title: "Malicious IP: 59.166.0.3",
+              tooltip: "External threat actor from JP",
+              evidence: [
+                { type: "critical", label: "Threat Intel", text: "IP flagged in 15+ threat feeds (VirusTotal, AbuseIPDB)" },
+                { type: "critical", label: "Connection", text: "Multiple failed SSH/RDP authentication attempts" },
+                { type: "warning", label: "Geolocation", text: "Origin: JP | Suspicious ASN" },
+                { type: "info", label: "First Seen", text: "2026-02-03 08:24:17 IST" }
+              ]
+            },
+            host: {
+              title: "Compromised Host",
+              tooltip: "Initial breach point via brute force",
+              evidence: [
+                { type: "critical", label: "MITRE", text: "T1021 - Remote Services" },
+                { type: "critical", label: "Auth Events", text: "327 failed logins, then success" },
+                { type: "warning", label: "Vuln", text: "Weak password policy (no MFA)" },
+                { type: "info", label: "Account", text: "admin@corp.local" }
+              ]
+            },
+            user: {
+              title: "Compromised Account",
+              tooltip: "Privileged account used",
+              evidence: [
+                { type: "critical", label: "MITRE", text: "T1078 - Valid Accounts" },
+                { type: "critical", label: "Privilege", text: "Domain Administrator" },
+                { type: "info", label: "Deviation", text: "Baseline: 0.80" }
+              ]
+            },
+            service: {
+              title: "Remote Services",
+              tooltip: "RDP/SSH exploitation",
+              evidence: [
+                { type: "critical", label: "MITRE", text: "T1021 - Remote Services" },
+                { type: "warning", label: "Commands", text: "net user, whoami, ipconfig" },
+                { type: "info", label: "Service", text: "RDP Port 3389" }
+              ]
+            },
+            lateral: {
+              title: "Lateral Movement",
+              tooltip: "10 systems compromised",
+              evidence: [
+                { type: "critical", label: "MITRE", text: "T1570 - Lateral Tool Transfer" },
+                { type: "critical", label: "Systems", text: "10 hosts affected" },
+                { type: "warning", label: "Tools", text: "mimikatz.exe, psexec.exe" }
+              ]
+            },
+            persistence: {
+              title: "Persistence",
+              tooltip: "Maintained access across network",
+              evidence: [
+                { type: "critical", label: "MITRE", text: "TA0008 - Lateral Movement" },
+                { type: "warning", label: "Method", text: "Scheduled task created" },
+                { type: "info", label: "Beacon", text: "C2 traffic every 300s" }
+              ]
+            }
+          }
+        },
+        {
+          id: "CHAIN_1289",
+          severity: 72.9,
+          attacker: "59.166.0.2",
+          location: "JP",
+          totalEvents: "80,885",
+          anomalyRatio: "1.0%",
+          targetsAffected: 10,
+          baselineDeviation: "0.50",
+          confidence: "50%",
+          nodeEvidence: {
+            attacker: { title: "Malicious IP", tooltip: "Known C2", evidence: [{ type: "critical", label: "Intel", text: "Known C2 Node" }] },
+            host: { title: "Entry Host", tooltip: "Web Server", evidence: [{ type: "warning", label: "Vuln", text: "Unpatched vulnerability" }] },
+            user: { title: "User", tooltip: "Service Account", evidence: [{ type: "info", label: "User", text: "www-data" }] },
+            service: { title: "Service", tooltip: "HTTPS Tunnel", evidence: [{ type: "warning", label: "Port", text: "443" }] },
+            lateral: { title: "Lateral", tooltip: "Internal Scan", evidence: [{ type: "critical", label: "Tool", text: "Nmap Script" }] },
+            persistence: { title: "Persist", tooltip: "Web Shell", evidence: [{ type: "critical", label: "File", text: "shell.php" }] }
+          }
+        },
+        {
+          id: "CHAIN_1123",
+          severity: 72.8,
+          attacker: "59.166.0.0",
+          location: "JP",
+          totalEvents: "47,952",
+          anomalyRatio: "1.0%",
+          targetsAffected: 10,
+          baselineDeviation: "0.50",
+          confidence: "50%",
+          nodeEvidence: {
+            attacker: { title: "Malicious IP", tooltip: "Botnet Node", evidence: [{ type: "critical", label: "Type", text: "Brute Force Bot" }] },
+            host: { title: "Entry Host", tooltip: "Database", evidence: [{ type: "warning", label: "Vuln", text: "Weak Creds" }] },
+            user: { title: "User", tooltip: "DB Admin", evidence: [{ type: "info", label: "User", text: "db_backup" }] },
+            service: { title: "Service", tooltip: "SQL Injection", evidence: [{ type: "warning", label: "Port", text: "1433" }] },
+            lateral: { title: "Lateral", tooltip: "XP_CMDSHELL", evidence: [{ type: "critical", label: "Cmd", text: "whoami" }] },
+            persistence: { title: "Persist", tooltip: "Stored Proc", evidence: [{ type: "critical", label: "File", text: "sp_add_job" }] }
+          }
+        },
+        {
+          id: "CHAIN_0962",
+          severity: 72.7,
+          attacker: "175.45.176.1",
+          location: "KP",
+          totalEvents: "153,160",
+          anomalyRatio: "94.3%",
+          targetsAffected: 12,
+          baselineDeviation: "0.85",
+          confidence: "75%",
+          nodeEvidence: {
+            attacker: { title: "APT Source", tooltip: "North Korea (Lazarus)", evidence: [{ type: "critical", label: "Actor", text: "Lazarus Group" }] },
+            host: { title: "VPN Concentrator", tooltip: "Zero Day Exploit", evidence: [{ type: "critical", label: "Vuln", text: "0-Day RCE" }] },
+            user: { title: "Root", tooltip: "Root Access", evidence: [{ type: "critical", label: "Priv", text: "ROOT" }] },
+            service: { title: "Service", tooltip: "Custom Tunnel", evidence: [{ type: "warning", label: "Port", text: "UDP/53 (DNS Tunnel)" }] },
+            lateral: { title: "Lateral", tooltip: "Deep Inspection", evidence: [{ type: "critical", label: "Tool", text: "Custom Malware" }] },
+            persistence: { title: "Persist", tooltip: "Rootkit", evidence: [{ type: "critical", label: "Type", text: "Kernel Module" }] }
+          }
+        }
+      ];
+
+      // 2. FILL REMAINING SLOTS (Total 10) - Ensures Next Button Works
+      for(let i=5; i<=10; i++) {
+        chainData.push({
+            id: `CHAIN_100${i}`,
+            severity: 60 + i,
+            attacker: `192.168.1.${100+i}`,
+            location: "XX",
+            totalEvents: `${i * 1200}`,
+            anomalyRatio: "2.1%",
+            targetsAffected: 1,
+            baselineDeviation: "0.40",
+            confidence: "30%",
+            nodeEvidence: {
+                attacker: { title: "Suspicious Source", tooltip: "Scanner", evidence: [{ type: "warning", label: "Type", text: "Port Scanner" }] },
+                host: { title: "Gateway", tooltip: "Firewall", evidence: [{ type: "info", label: "Action", text: "Blocked" }] },
+                user: { title: "N/A", tooltip: "No Auth", evidence: [{ type: "info", label: "User", text: "None" }] },
+                service: { title: "Service", tooltip: "Telnet/SSH", evidence: [{ type: "warning", label: "Port", text: "23/22" }] },
+                lateral: { title: "None", tooltip: "No Movement", evidence: [{ type: "info", label: "Status", text: "Failed" }] },
+                persistence: { title: "None", tooltip: "Clean", evidence: [{ type: "info", label: "Status", text: "Clean" }] }
+            }
+        });
+      }
+
+      function updateChain() {
+        const chain = chainData[currentChainIndex];
+        
+        document.getElementById('severityBadge').textContent = `SEVERITY: ${chain.severity}/100`;
+        document.getElementById('chainId').textContent = `Incident ID: ${chain.id}`;
+        
+        document.getElementById('currentChain').textContent = currentChainIndex + 1;
+        document.getElementById('prevBtn').disabled = currentChainIndex === 0;
+        document.getElementById('nextBtn').disabled = currentChainIndex === chainData.length - 1;
+        
+        document.getElementById('attackerIp').textContent = chain.attacker;
+        document.getElementById('systemsCount').textContent = `${chain.targetsAffected} Systems`;
+        
+        document.getElementById('totalEvents').textContent = chain.totalEvents;
+        document.getElementById('anomalyRatio').textContent = chain.anomalyRatio;
+        document.getElementById('targetsAffected').textContent = chain.targetsAffected;
+        
+        // Hide panel on switch
+        document.getElementById('evidencePanel').classList.remove('active');
+        
+        // Fade in main container
+        const container = document.querySelector('.dashboard-container');
+        container.classList.remove('fade-in');
+        void container.offsetHeight; 
+        container.classList.add('fade-in');
+      }
+
+      function previousChain() {
+        if (currentChainIndex > 0) {
+          currentChainIndex--;
+          updateChain();
+        }
+      }
+
+      function nextChain() {
+        if (currentChainIndex < chainData.length - 1) {
+          currentChainIndex++;
+          updateChain();
+        }
+      }
+
+      document.getElementById('prevBtn').addEventListener('click', previousChain);
+      document.getElementById('nextBtn').addEventListener('click', nextChain);
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') previousChain();
+        if (e.key === 'ArrowRight') nextChain();
+      });
+
+      const tooltip = document.getElementById("tooltip");
+      const evidencePanel = document.getElementById("evidencePanel");
+      const evidenceTitle = document.getElementById("evidenceTitle");
+      const evidenceContent = document.getElementById("evidenceContent");
+
+      document.querySelectorAll("[data-node]").forEach(node => {
+        const nodeType = node.getAttribute("data-node");
+
+        node.addEventListener("mouseenter", () => {
+          const data = chainData[currentChainIndex].nodeEvidence[nodeType];
+          tooltip.innerHTML = `
+            <div class="tooltip-title">${data.title}</div>
+            <div class="tooltip-content">${data.tooltip}</div>
+            <div class="tooltip-evidence">Click to view evidence →</div>
+          `;
+          tooltip.classList.add("show");
+        });
+
+        node.addEventListener("mousemove", (e) => {
+          tooltip.style.left = e.pageX + 5 + "px";
+          tooltip.style.top = e.pageY + 5 + "px";
+        });
+
+        node.addEventListener("mouseleave", () => {
+          tooltip.classList.remove("show");
+        });
+
+        node.addEventListener("click", () => {
+          const data = chainData[currentChainIndex].nodeEvidence[nodeType];
+          evidenceTitle.textContent = data.title;
+          evidenceContent.innerHTML = data.evidence.map(item => `
+            <div class="evidence-item ${item.type}">
+              <strong>${item.label}:</strong> ${item.text}
+              <span class="evidence-badge">${item.type.toUpperCase()}</span>
+            </div>
+          `).join("");
+          evidencePanel.classList.add("active");
+          evidencePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest("[data-node]") && !e.target.closest(".evidence-panel")) {
+          evidencePanel.classList.remove("active");
+        }
+      });
+
+      // Initialize
+      updateChain();
+    </script>
+  </body>
+</html>
